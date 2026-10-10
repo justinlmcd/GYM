@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="GYM">
+<meta name="theme-color" content="#0d0909">
+<title>GYM · Your training</title>
+<style>
+:root{color-scheme:dark;--bg:#0d0909;--ink:#f8eeee;--muted:#bda5a7;--line:#2b2022;--mint:#ff9b9b;--accent:#ff9b9b;--error:#ffcf7a;--good:#9be39f;--sans:Inter,"Helvetica Neue",Arial,sans-serif;--mono:ui-monospace,SFMono-Regular,Consolas,monospace;
+--c1:#3987e5;--c2:#d95926;--c3:#199e70;--c4:#c98500;--c5:#d55181;--c6:#008300;--c7:#9085e9;--c8:#e66767}
+html{-webkit-text-size-adjust:100%}*{box-sizing:border-box}[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 var(--sans);font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}
+button,input,select{font:inherit}button,a,input,select,summary{outline-offset:5px}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--mint)}
+button{cursor:pointer;color:inherit;transition:color .15s,border-color .15s,background .15s}button:disabled{cursor:default;opacity:.5}a{color:var(--mint)}
+input,select{border-radius:6px;background:#15100f;color:var(--ink);border:1px solid var(--line);padding:12px;width:100%;min-width:0}
+input::placeholder{color:#9f8688}input:focus,select:focus{border-color:var(--mint)}
+.quiet-button{border:1px solid #3f2a2d;border-radius:6px;padding:8px 14px;background:transparent;font-size:13px;font-weight:550}.quiet-button:hover{border-color:var(--mint);color:var(--mint)}
+.text-button{border:0;background:transparent;padding:7px 0;color:var(--muted);font-size:13px}.text-button:hover{color:var(--mint)}
+.status{font-size:12px;color:var(--muted)}.status.connected:before{content:"";display:inline-block;width:5px;height:5px;background:var(--mint);border-radius:50%;margin-right:8px}
+.workspace{min-height:100dvh;padding-left:224px;position:relative;isolation:isolate}
+.workspace:before{content:"";position:absolute;inset:0 0 0 224px;z-index:-1;background:radial-gradient(ellipse 70% 52% at 56% 16%,#d6505014,transparent 72%);pointer-events:none}
+.sidebar{position:fixed;inset:0 auto 0 0;width:224px;padding:calc(26px + env(safe-area-inset-top)) 24px 26px max(24px,env(safe-area-inset-left));background:linear-gradient(165deg,#24101270,transparent 55%);border-right:1px solid #372224;z-index:2}
+.brand{font-size:35px;font-weight:800;letter-spacing:-.08em}.brand span{color:var(--mint)}
+.nav-label{margin:57px 0 18px;font:11px var(--mono);letter-spacing:.15em;color:var(--muted)}
+.area-link{display:grid;gap:6px;text-decoration:none;padding:14px 12px;margin:0 -12px 6px;border-radius:6px;color:var(--ink)}
+.area-link[aria-current]{background:linear-gradient(110deg,#ff9b9b13,transparent)}
+.area-name{font-size:14px;font-weight:600;color:var(--muted);display:flex;align-items:center;gap:9px}.area-name svg{width:15px;height:20px;color:var(--mint);flex:none}
+.area-link strong{font-size:28px;font-weight:550;letter-spacing:-.06em;line-height:1.05;overflow-wrap:anywhere}
+.index-meta{display:flex;justify-content:space-between;gap:8px;font-size:11px;color:var(--muted);padding:12px 0 0}.index-meta span:last-child{color:var(--ink)}
+.wrap{max-width:1360px;margin:auto;padding:0 max(44px,env(safe-area-inset-right)) calc(28px + env(safe-area-inset-bottom)) max(44px,env(safe-area-inset-left))}
+header{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:25px 0}.overview-label{font-size:13px;color:var(--muted)}.header-right{display:flex;align-items:center;gap:18px}
+.quote{display:grid;grid-template-columns:auto 1fr;gap:16px;align-items:start;padding:18px 20px;margin:4px 0 6px;border:1px solid var(--line);border-radius:10px;background:linear-gradient(110deg,#ff9b9b10,transparent 70%)}
+.quote-mark{font-size:34px;line-height:.8;color:var(--mint);font-weight:500;font-family:Georgia,"Times New Roman",serif;margin-top:4px}.quote-body{min-width:0}
+.quote-label{font:11px var(--mono);letter-spacing:.17em;color:var(--mint);text-transform:uppercase;margin:0 0 6px}
+.quote-text{font-size:clamp(15px,1.5vw,18px);line-height:1.5;letter-spacing:-.01em;margin:0;overflow-wrap:anywhere}.quote-author{font-size:12px;color:var(--muted);margin:6px 0 0}
+.hero{padding:31px 0 0}.hero-top{display:flex;align-items:flex-end;justify-content:space-between;gap:28px;margin-bottom:24px}
+h1{font-size:clamp(64px,7.5vw,100px);font-weight:500;line-height:1;letter-spacing:-.07em;margin:10px 0 0}
+.latest-block{text-align:right;min-width:0}.point-metric{font-size:14px;color:var(--muted);margin:0 0 5px}
+.latest{display:flex;align-items:baseline;justify-content:flex-end;gap:9px}.latest strong{font-size:clamp(46px,6vw,78px);font-weight:500;line-height:1.07;letter-spacing:-.06em}
+.latest-time{font-size:12px;color:var(--muted);margin:8px 0 0}
+.tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:10px 0 28px}
+.tile{border:1px solid var(--line);border-radius:10px;padding:16px 18px;background:#120d0e}
+.tile p{margin:0;font-size:12px;color:var(--muted)}.tile strong{display:block;font-size:26px;font-weight:500;letter-spacing:-.04em;margin-top:6px;overflow-wrap:anywhere}
+.tile small{display:block;font-size:11px;color:var(--muted);margin-top:4px}
+.range-row{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:0 0 14px;flex-wrap:wrap}
+.range-row .seg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.seg button{border:0;background:transparent;padding:7px 14px;font-size:13px;color:var(--muted)}.seg button[aria-pressed=true]{background:#ff9b9b1a;color:var(--ink)}
+.charts{display:grid;grid-template-columns:1.6fr 1fr;gap:20px;margin-bottom:10px}
+.chart-card{border:1px solid var(--line);border-radius:10px;padding:18px 20px 14px;background:#120d0e;min-width:0;position:relative}
+.chart-card h2{font-size:15px;font-weight:550;letter-spacing:-.02em;margin:0 0 2px}.chart-card .sub{font-size:12px;color:var(--muted);margin:0 0 14px}
+.plot{width:100%;height:260px;display:block;overflow:visible;touch-action:pan-y}.plot text{font:11px var(--mono);fill:var(--muted)}
+.plot .hit{fill:transparent}.plot .grid{stroke:#36201f;stroke-dasharray:2 7}.plot .axis{stroke:#3f2629}
+.tip{position:absolute;pointer-events:none;background:#19120f;border:1px solid #44282b;border-radius:6px;padding:8px 10px;font-size:12px;line-height:1.4;box-shadow:0 10px 40px #0008;white-space:nowrap;transform:translate(-50%,calc(-100% - 12px))}
+.tip strong{display:block;font-size:14px;letter-spacing:-.02em}.tip.hidden{display:none}
+.donut-wrap{display:grid;grid-template-columns:150px 1fr;gap:18px;align-items:center}
+.donut{width:150px;height:150px}.donut-center{font-size:20px;font-weight:500;letter-spacing:-.04em;fill:var(--ink);font-family:var(--sans)}
+.legend{list-style:none;margin:0;padding:0;display:grid;gap:7px;font-size:12px}.legend li{display:grid;grid-template-columns:10px 1fr auto;gap:10px;align-items:center;color:var(--muted)}
+.legend i{width:10px;height:10px;border-radius:2px;display:block}.legend b{color:var(--ink);font-weight:500}.legend li.dim{opacity:.4}
+.chart-empty{min-height:200px;display:grid;place-content:center;text-align:center;color:var(--muted);font-size:14px}
+.section-head{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:24px 0 14px;border-top:1px solid var(--line);margin-top:22px}
+.section-head h2{font-size:17px;font-weight:500;letter-spacing:-.025em;margin:0}.section-head .left{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}.section-head span{font-size:12px;color:var(--muted)}
+.rows{display:grid;gap:0}.row{display:grid;grid-template-columns:auto 1fr auto auto;gap:14px;align-items:center;padding:12px 0;border-top:1px solid #2e1e20;min-width:0}
+.row .dot{width:8px;height:8px;border-radius:50%}.row .who{min-width:0}.row .who b{font-weight:550;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .who small{color:var(--muted);font-size:12px}.row .amt{font-size:17px;letter-spacing:-.03em;font-weight:500}
+.row .ops{display:flex;gap:10px}.row .ops button{font-size:12px;padding:4px 0}.row .ops button:hover{color:var(--error)}
+.row-empty{font-size:14px;color:var(--muted);margin:0;padding:7px 0 22px}
+.subs-total{font-size:12px;color:var(--muted)}.subs-total b{color:var(--ink);font-weight:500}
+.due{color:var(--mint)}.overdue{color:var(--error)}
+.footer{display:flex;justify-content:space-between;gap:18px;color:var(--muted);font-size:11px;padding:22px 0 30px;margin-top:12px}.footer a{color:var(--muted);text-decoration:none}
+dialog{color:var(--ink);background:#19120f;border:1px solid #44282b;border-radius:12px;width:min(470px,calc(100% - 28px));padding:28px;max-height:calc(100dvh - 36px);overflow:auto;box-shadow:0 30px 140px #0009}
+dialog::backdrop{background:#060202b8;backdrop-filter:blur(6px)}
+.modal-head{display:flex;justify-content:space-between;align-items:center;gap:18px}.modal-head h2{font-size:27px;letter-spacing:-.04em;font-weight:550;margin:0}
+.close{border:0;background:transparent;color:var(--muted);font-size:26px;padding:0 6px}.modal-copy{color:var(--muted);font-size:14px;margin:8px 0 24px}
+.field{display:block;min-width:0}.field>span{display:block;margin:0 0 8px;color:#e2d1d3;font-size:13px;font-weight:550}
+fieldset{border:0;padding:0;margin:0;display:grid;gap:16px;min-width:0}.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.big{font-size:34px;height:66px;letter-spacing:-.04em}
+.primary{border:1px solid var(--mint);border-radius:6px;background:var(--mint);color:#2a0707;font-weight:650;padding:13px 18px;width:100%;margin-top:2px}.primary:hover{background:#ffb8b8}
+.message{font-size:13px;margin:10px 0 0;color:var(--muted);overflow-wrap:anywhere}.message:empty{display:none}.message.error{color:var(--error)}.message.success{color:var(--mint)}
+noscript{display:block;padding:20px;color:var(--error)}
+@media(max-width:1000px){.workspace{padding-left:195px}.sidebar{width:195px;padding-left:20px;padding-right:20px}.wrap{padding-left:28px;padding-right:28px}.workspace:before{left:195px}.tiles{grid-template-columns:repeat(2,minmax(0,1fr))}.charts{grid-template-columns:1fr}}
+@media(max-width:760px){.workspace{padding-left:0}.workspace:before{left:0}.sidebar{position:static;width:100%;padding:calc(18px + env(safe-area-inset-top)) max(24px,env(safe-area-inset-right)) 18px max(24px,env(safe-area-inset-left));display:flex;align-items:center;gap:28px;border-right:0;border-bottom:1px solid #372224}.brand{font-size:29px}.nav-label,.sidebar nav{display:none}.wrap{padding:0 24px 25px}header{padding:16px 0}.hero{padding-top:12px}.hero-top{gap:18px}.latest strong{font-size:54px}}
+@media(max-width:520px){.wrap{padding:0 20px 25px}.header-right{gap:12px}.status{display:none}.hero-top{flex-direction:column;align-items:flex-start;gap:6px;margin-bottom:20px}.latest-block{text-align:left}.latest{justify-content:flex-start}h1{font-size:62px}.latest strong{font-size:44px}.section-head{flex-wrap:wrap}.section-head .text-button{white-space:nowrap}.latest-time{font-size:11px}.tiles{gap:8px}.tile{padding:12px 14px}.tile strong{font-size:22px}.quote{padding:14px 16px;gap:12px}.quote-mark{font-size:28px}.donut-wrap{grid-template-columns:120px 1fr;gap:12px}.donut{width:120px;height:120px}.plot{height:220px}.row{grid-template-columns:auto 1fr auto;gap:10px}.row .ops{grid-column:2/-1;justify-content:flex-end}.two{grid-template-columns:1fr}dialog{padding:23px}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+
+.pick{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.pick select{width:auto;min-width:200px;max-width:100%;font-size:14px;padding:9px 12px;background:transparent}
+.next{border:1px solid var(--line);border-radius:10px;padding:16px 18px;background:linear-gradient(110deg,#ff9b9b10,transparent 70%);display:grid;grid-template-columns:1fr auto;gap:16px;align-items:center;margin:0 0 20px}
+.next p{margin:0;font-size:12px;color:var(--muted)}.next strong{display:block;font-size:clamp(22px,2.6vw,30px);font-weight:500;letter-spacing:-.04em;margin-top:4px}.next small{display:block;font-size:12px;color:var(--muted);margin-top:4px}
+.next .quiet-button{white-space:nowrap}
+.sets-grid{display:grid;gap:8px}.set-row{display:grid;grid-template-columns:28px 1fr 1fr 32px;gap:8px;align-items:center}.set-row span{font:11px var(--mono);color:var(--muted);text-align:center}
+.set-row input{padding:10px}.set-row button{border:0;background:transparent;color:var(--muted);font-size:18px;padding:0}.set-row button:hover{color:var(--error)}
+.add-set{justify-self:start}
+.pr{color:var(--mint);font:11px var(--mono);letter-spacing:.1em;margin-left:8px}
+.day-group{margin-top:10px}.day-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:16px 0 6px;font-size:13px;font-weight:550}.day-head span{font-size:12px;color:var(--muted);font-weight:400}
+.row .sets-line{font-family:var(--mono);font-size:12px;color:var(--muted);overflow-wrap:anywhere}
+.lib-stat{font:12px var(--mono);color:var(--muted)}
+@media(max-width:520px){.next{grid-template-columns:1fr}.set-row{grid-template-columns:24px 1fr 1fr 28px}}
+</style>
+</head>
+<body>
+<noscript>This page needs JavaScript to connect to your database.</noscript>
+<div class="workspace">
+<aside class="sidebar" aria-label="Your training"><div class="brand" aria-label="GYM">GYM<span>.</span></div><p class="nav-label">YOUR TRAINING</p><nav aria-label="Summary">
+<a class="area-link" href="#gym" aria-current="page"><span class="area-name"><svg viewBox="0 0 20 26" fill="none" aria-hidden="true"><path d="M3 10v6M17 10v6M6 8v10M14 8v10M6 13h8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>This week</span><strong id="side-week">—</strong></a>
+<a class="area-link" href="#log"><span class="area-name"><svg viewBox="0 0 20 26" fill="none" aria-hidden="true"><path d="M4 20l4-6 3 3 5-8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Workouts</span><strong id="side-total">—</strong></a>
+</nav></aside>
+<div class="wrap">
+<header><span class="overview-label">Your overview</span><div class="header-right"><span class="status" id="connection-status">Your record</span><button class="quiet-button" id="connect-open" type="button">Sign in ↗</button><button class="quiet-button" id="log-open" type="button" hidden>Log workout +</button><button class="text-button" id="sign-out" type="button" hidden>Sign out</button></div></header>
+<main>
+<aside class="quote" id="quote" aria-label="Quote of the day"><span class="quote-mark" aria-hidden="true">“</span><div class="quote-body"><p class="quote-label">Quote of the day</p><p class="quote-text" id="quote-text"></p><p class="quote-author" id="quote-author"></p></div></aside>
+<section class="hero" id="gym" aria-label="Training overview">
+<div class="hero-top"><div><h1>GYM.</h1></div><div class="latest-block"><p class="point-metric">Workouts this week</p><div class="latest"><strong id="week-count">—</strong></div><p class="latest-time" id="week-note">Your first workout starts here.</p></div></div>
+<div class="tiles">
+<div class="tile"><p>Last workout</p><strong id="tile-last">—</strong><small id="tile-last-note"></small></div>
+<div class="tile"><p>Volume this week</p><strong id="tile-volume">—</strong><small id="tile-volume-note">weight × reps</small></div>
+<div class="tile"><p>Streak</p><strong id="tile-streak">—</strong><small>weeks with a workout</small></div>
+<div class="tile"><p>Records</p><strong id="tile-prs">—</strong><small id="tile-prs-note">personal bests this month</small></div>
+</div>
+<div class="range-row"><div class="pick"><span class="overview-label">Exercise</span><select id="exercise-pick" aria-label="Exercise to chart"><option value="">Add an exercise first</option></select></div><div class="seg" role="group" aria-label="Date range"><button type="button" data-range="30" aria-pressed="false">30 days</button><button type="button" data-range="90" aria-pressed="true">90 days</button><button type="button" data-range="365" aria-pressed="false">1 year</button><button type="button" data-range="all" aria-pressed="false">All</button></div></div>
+<div class="next" id="next" hidden><div><p id="next-label">Next session</p><strong id="next-plan">—</strong><small id="next-why"></small></div><button class="quiet-button" id="next-log" type="button">Log this ↗</button></div>
+<div class="charts" style="grid-template-columns:1fr">
+<div class="chart-card" id="line-card"><h2 id="line-title">Progress</h2><p class="sub" id="line-sub">Estimated one-rep max per session</p><svg id="line-plot" class="plot" viewBox="0 0 700 260" role="img" aria-label="Progress over time"></svg><div class="chart-empty" id="line-empty" hidden>Log a workout with this exercise to draw your line.</div><div class="tip hidden" id="line-tip"></div></div>
+</div>
+</section>
+<section id="log" aria-label="Workout log"><div class="section-head"><div class="left"><h2>Workout log</h2><span id="log-count"></span></div><button class="text-button" id="log-open-2" type="button" hidden>Log workout +</button></div><div id="log-list"><p class="row-empty">Sign in to see your workouts.</p></div><p class="message" id="history-message" role="status" aria-live="polite"></p></section>
+<section id="library" aria-label="Exercises"><div class="section-head"><div class="left"><h2>Exercises</h2><span id="ex-count"></span></div><button class="text-button" id="ex-open" type="button" hidden>New exercise +</button></div><div class="rows" id="ex-list"><p class="row-empty">Sign in to see your exercises.</p></div></section>
+<footer class="footer"><span>GYM · your training, in your database</span><a href="https://github.com/justinlmcd/gym">Source ↗</a></footer>
+</main>
+</div>
+</div>
+<dialog id="log-dialog" aria-labelledby="log-title"><div class="modal-head"><h2 id="log-title">Log workout.</h2><button class="close" id="log-close" type="button" aria-label="Close">×</button></div><form id="log-form"><fieldset id="log-fields" disabled>
+<div class="two"><label class="field"><span>Exercise</span><select id="log-exercise" required></select></label><label class="field"><span>Date</span><input id="log-date" type="date" required></label></div>
+<div class="field"><span id="sets-label">Sets</span><div class="sets-grid" id="sets-grid"></div><button class="text-button add-set" id="add-set" type="button">+ Add set</button></div>
+<label class="field"><span>Note</span><input id="log-note" type="text" placeholder="Optional" maxlength="140" autocomplete="off"></label>
+<input type="hidden" id="log-edit-key"><button class="primary" id="log-save" type="submit">Save workout ↗</button></fieldset><p class="message" id="log-message" role="status"></p></form></dialog>
+<dialog id="ex-dialog" aria-labelledby="ex-title"><div class="modal-head"><h2 id="ex-title">New exercise.</h2><button class="close" id="ex-close" type="button" aria-label="Close">×</button></div><p class="modal-copy">Set the target. When you hit it, GYM tells you to add weight.</p><form id="ex-form"><fieldset id="ex-fields" disabled>
+<label class="field"><span>Name</span><input id="ex-name" type="text" placeholder="Bench press, squat, pull-up…" maxlength="80" required autocomplete="off"></label>
+<div class="two"><label class="field"><span>Muscle group</span><select id="ex-muscle"></select></label><label class="field"><span>Unit</span><select id="ex-unit"><option value="lbs">lbs</option><option value="kg">kg</option></select></label></div>
+<div class="two"><label class="field"><span>Target sets</span><input id="ex-sets" type="number" min="1" max="20" value="3" required></label><label class="field"><span>Target reps</span><input id="ex-reps" type="number" min="1" max="100" value="8" required></label></div>
+<label class="field"><span>Add this much when you hit the target</span><input id="ex-inc" type="text" inputmode="decimal" value="5" required></label>
+<input type="hidden" id="ex-id"><button class="primary" id="ex-save" type="submit">Save exercise ↗</button></fieldset><p class="message" id="ex-message" role="status"></p></form></dialog>
+<dialog id="connection-dialog" aria-labelledby="connect-title"><div class="modal-head"><h2 id="connect-title">Sign in.</h2><button class="close" id="connect-close" type="button" aria-label="Close sign-in">×</button></div><p class="modal-copy">Your training, in your database.</p>
+<form id="connect-form"><label class="field"><span>Email</span><input id="email" type="email" autocomplete="username" required></label><label class="field" style="margin-top:16px"><span>Password</span><input id="password" type="password" autocomplete="current-password" required></label><button class="primary" id="connect-submit" type="submit" style="margin-top:16px">Sign in ↗</button><p class="message" id="connect-message" role="status"></p></form></dialog>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js"></script>
+<script src="/quote-of-day.js"></script>
+<script src="/gym.js"></script>
+</body>
+</html>
