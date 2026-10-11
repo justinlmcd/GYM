@@ -54,6 +54,7 @@ function setUser(next){
   $('connection-status').textContent=user?'Connected':'Your record'; $('connection-status').classList.toggle('connected',!!user);
   if(!user){ exercises=[]; sets=[]; picked=''; render(); $('log-list').innerHTML='<p class="row-empty">Sign in to see your workouts.</p>'; $('ex-list').innerHTML='<p class="row-empty">Sign in to see your exercises.</p>'; $('log-dialog').close(); $('ex-dialog').close(); }
   else load();
+  window.coachUser?.(user?.id);
 }
 $('connect-open').onclick=()=>{ $('connection-dialog').showModal(); $('email').focus(); };
 $('connect-close').onclick=()=>{ if(!busy)$('connection-dialog').close(); };
@@ -244,6 +245,22 @@ document.addEventListener('click',async e=>{
 $('exercise-pick').onchange=()=>{ picked=$('exercise-pick').value; render(); };
 document.querySelectorAll('[data-range]').forEach(b=>b.onclick=()=>{ range=b.dataset.range; document.querySelectorAll('[data-range]').forEach(x=>x.setAttribute('aria-pressed',String(x===b))); render(); });
 
+
+// What the coach reads: every exercise with its target, the last sessions of each, and how often you trained.
+function coachSummary(){
+  const t=today(); const L=[];
+  const days=[...new Set(sets.map(s=>s.performed_on))].sort();
+  const weeks=[]; for(let i=7;i>=0;i--){ const e=addDays(t,-i*7), s=addDays(e,-6); weeks.push(`${s}: ${days.filter(d=>d>=s&&d<=e).length}`); }
+  L.push(`Workouts logged: ${days.length} total, ${days.filter(d=>d>=addDays(t,-29)).length} in the last 30 days. Last workout: ${days.at(-1)||'none'}.`);
+  L.push('Workouts per week, oldest first: '+weeks.join('; ')+'.');
+  for(const ex of exercises.filter(x=>!x.archived)){
+    const hist=sessions(ex.id); const s=suggest(ex); const best=hist.length?hist.reduce((a,h)=>h.e1rm>a.e1rm?h:a,hist[0]):null;
+    L.push(`\nExercise: ${ex.name} (${ex.muscle}). Target ${ex.target_sets}×${ex.target_reps}, +${num(ex.increment)} ${ex.unit} when hit. ${hist.length} sessions.${best?` Best estimated 1RM ${best.e1rm.toFixed(0)} ${ex.unit} on ${best.day}.`:''} Next suggested: ${s.weight===null?'start':fmtW(s.weight,ex.unit)}.`);
+    for(const h of hist.slice(-6)) L.push(`  ${h.day}: ${h.rows.map(r=>`${num(r.weight)}×${r.reps}`).join(' ')} (est 1RM ${h.e1rm.toFixed(0)}, volume ${num(h.volume)})${h.note?' note: '+h.note:''}`);
+  }
+  return L.join('\n');
+}
+window.coach={app:'gym',userId:async()=>user?.id||null,session:async()=>{ try{ const db=await connect(); const {data:{session}}=await db.auth.getSession(); return session?.access_token||null; }catch{ return null; } },summary:coachSummary};
 // Reconnect a saved session, if any.
 render();
 connect().catch(()=>{});

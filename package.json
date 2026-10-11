@@ -3,5 +3,10 @@
   "private": true,
   "version": "0.1.0",
   "description": "GYM. Log workouts, build exercises with progressive overload, and watch each lift climb.",
-  "scripts": { "dev": "node dev.js" }
+  "scripts": {
+    "dev": "node dev.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.80.0"
+  }
 }
