@@ -38,4 +38,4 @@ Then open http://localhost:8799.
 
 ## Add to your iPhone home screen
 
-Open the site in Safari, tap Share, then **Add to Home Screen**. It runs full screen with the status bar matched to the page.
+Open the site in Safari, tap Share, then **Add to Home Screen**. It runs full screen below a black status bar.
