@@ -49,7 +49,7 @@ function setUser(next){
   if(next?.id===user?.id)return;
   user=next; loadId++;
   $('connect-open').hidden=!!user;
-  for(const id of ['sign-out','log-open','log-open-2','ex-open']) $(id).hidden=!user;
+  for(const id of ['sign-out','log-open','log-open-2','ex-open','csv-log']) $(id).hidden=!user;
   $('log-fields').disabled=!user; $('ex-fields').disabled=!user;
   $('connection-status').textContent=user?'Connected':'Your record'; $('connection-status').classList.toggle('connected',!!user);
   if(!user){ exercises=[]; sets=[]; picked=''; render(); $('log-list').innerHTML='<p class="row-empty">Sign in to see your workouts.</p>'; $('ex-list').innerHTML='<p class="row-empty">Sign in to see your exercises.</p>'; $('log-dialog').close(); $('ex-dialog').close(); }
@@ -162,7 +162,7 @@ function lineHover(e){
   tip.innerHTML=`${esc(longDate(best.day))}${best.pr?'<span class="pr">PR</span>':''}<strong>${best.best.weight>0?esc(fmtW(best.e1rm.toFixed(0),ex.unit))+' est. 1RM':best.best.reps+' reps'}</strong>${best.rows.map(s=>`${num(s.weight)}×${s.reps}`).join(' · ')}`;
   tip.classList.remove('hidden'); tip.style.left=(r.left-card.left+best.px/700*r.width)+'px'; tip.style.top=(r.top-card.top+best.py/260*r.height)+'px';
 }
-$('line-plot').addEventListener('pointermove',lineHover); $('line-plot').addEventListener('pointerleave',()=>{ $('line-tip').classList.add('hidden'); const f=$('line-focus'); if(f)f.innerHTML=''; });
+$('line-plot').addEventListener('pointermove',lineHover); tapToRead($('line-plot'),lineHover,()=>{ $('line-tip').classList.add('hidden'); const f=$('line-focus'); if(f)f.innerHTML=''; });
 
 // ---- lists ----
 function renderLog(){
@@ -183,6 +183,26 @@ function renderLibrary(){
     return `<div class="row" style="${ex.archived?'opacity:.5':''}"><span class="dot" style="background:${colorFor(ex.muscle)}"></span><div class="who"><b>${esc(ex.name)}</b><small>${esc(ex.muscle)} · target ${ex.target_sets}×${ex.target_reps} · +${num(ex.increment)} ${esc(ex.unit)} · ${hist.length} session${hist.length===1?'':'s'}</small></div><span class="lib-stat">${hist.length?`best ${esc(bestText(bestSet,ex.unit))} · next ${esc(fmtW(s.weight,ex.unit))}`:'not started'}</span><div class="ops"><button class="text-button" data-ex-chart="${ex.id}" type="button">Chart</button><button class="text-button" data-ex-edit="${ex.id}" type="button">Edit</button><button class="text-button" data-ex-del="${ex.id}" type="button">Delete</button></div></div>`; }).join('');
 }
 
+
+// Charts answer a tap as well as a hover: a touch pins the tooltip until you tap elsewhere.
+// Marks in the same group share one tooltip, so moving between them swaps it instead of hiding it.
+let lastPinned=null,lastGroup='';
+function tapToRead(el,show,hide,group=''){
+  let pinned=false;
+  el.addEventListener('pointerdown',e=>{ show(e); pinned=e.pointerType!=='mouse'; if(pinned){ lastPinned=el; lastGroup=group; } });
+  el.addEventListener('pointerleave',()=>{ if(!pinned) hide(); });
+  document.addEventListener('pointerdown',e=>{ if(pinned&&!el.contains(e.target)){ pinned=false; if(!(group&&lastGroup===group&&lastPinned!==el&&lastPinned?.contains(e.target))) hide(); } });
+}
+
+// Download, or on a phone share, a CSV of your own rows.
+async function exportCsv(name,header,rows){
+  const q=v=>{ const s=String(v??''); return /[",\n\r]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; };
+  const csv=[header,...rows].map(r=>r.map(q).join(',')).join('\r\n');
+  const blob=new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'});
+  try{ const file=new File([blob],name,{type:'text/csv'}); if(navigator.canShare&&navigator.canShare({files:[file]})){ await navigator.share({files:[file],title:name}); return; } }catch(err){ if(err?.name==='AbortError') return; }
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },1000);
+}
+$('csv-log').onclick=()=>exportCsv('gym-sets.csv',['date','exercise','set','weight','reps','unit','note'],sets.slice().sort((a,b)=>a.performed_on<b.performed_on?1:a.performed_on>b.performed_on?-1:a.set_no-b.set_no).map(s=>{ const ex=exById(s.exercise_id); return [s.performed_on,ex?.name||'',s.set_no,s.weight,s.reps,ex?.unit||'',s.note]; }));
 // ---- forms ----
 function parseNum(s,label){ const v=Number(String(s).replace(',','.')); if(!Number.isFinite(v)||v<0) throw new Error(`Enter a ${label} like 135.`); return Math.round(v*100)/100; }
 function setRow(i,w='',r=''){ return `<div class="set-row"><span>${i+1}</span><input type="text" inputmode="decimal" placeholder="weight" value="${esc(w)}" aria-label="Set ${i+1} weight"><input type="number" inputmode="numeric" min="0" max="1000" placeholder="reps" value="${esc(r)}" aria-label="Set ${i+1} reps"><button type="button" aria-label="Remove set ${i+1}">×</button></div>`; }
