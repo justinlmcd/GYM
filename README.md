@@ -20,6 +20,10 @@ The progress line plots your estimated one-rep max per session (Epley: weight ×
 
 Vercel redeploys on every push to `main`.
 
+## Cardio
+
+Log treadmill, stairmaster, bike or any other cardio with its length, speed and calories burned. Cardio days count toward workouts this week and your streak. If you set GYM up before cardio existed, run [cardio.sql](cardio.sql) once in the Supabase SQL editor.
+
 ## Your coach
 
 A card near the top reads your own recent data and tells you how you are doing: a score out of ten, what is going well, what to change, and one next step. Nothing is sent until you press **Ask the coach**, and the last answer is kept on your device. It runs on Claude through a small Vercel function, so you need one extra environment variable in Vercel: `ANTHROPIC_API_KEY`, created at console.anthropic.com under API keys. Each ask costs about a cent. Without the key, the card simply says the coach is off.

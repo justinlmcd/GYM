@@ -21,7 +21,7 @@ const e1rm=(w,r)=>r<=1?w:w*(1+r/30);
 const bestText=(set,unit)=>set.weight>0?fmtW(e1rm(set.weight,set.reps).toFixed(0),unit):`${set.reps} reps`;
 
 let client=null,user=null,busy=false,authSub=null,connecting=null,storageCleanup=null;
-let exercises=[],sets=[],range='90',picked='',loadId=0,colorOf=new Map();
+let exercises=[],sets=[],cardio=[],cardioReady=true,range='90',picked='',loadId=0,colorOf=new Map();
 
 function message(id,text,kind=''){ $(id).textContent=text; $(id).className='message'+(kind?' '+kind:''); }
 $('ex-muscle').innerHTML=MUSCLES.map(m=>`<option>${esc(m)}</option>`).join('');
@@ -51,10 +51,11 @@ function setUser(next){
   if(next?.id===user?.id)return;
   user=next; loadId++;
   $('connect-open').hidden=!!user;
-  for(const id of ['sign-out','log-open','log-open-2','ex-open','csv-log']) $(id).hidden=!user;
+  for(const id of ['sign-out','log-open','log-open-2','ex-open','csv-log','cardio-open','cardio-open-2','csv-cardio']) $(id).hidden=!user;
+  $('cardio-fields').disabled=!user;
   $('log-fields').disabled=!user; $('ex-fields').disabled=!user;
   $('connection-status').textContent=user?'Connected':'Your record'; $('connection-status').classList.toggle('connected',!!user);
-  if(!user){ exercises=[]; sets=[]; picked=''; render(); $('log-list').innerHTML='<p class="row-empty">Sign in to see your workouts.</p>'; $('ex-list').innerHTML='<p class="row-empty">Sign in to see your exercises.</p>'; $('log-dialog').close(); $('ex-dialog').close(); }
+  if(!user){ exercises=[]; sets=[]; cardio=[]; picked=''; $('cardio-dialog').close(); render(); $('log-list').innerHTML='<p class="row-empty">Sign in to see your workouts.</p>'; $('ex-list').innerHTML='<p class="row-empty">Sign in to see your exercises.</p>'; $('log-dialog').close(); $('ex-dialog').close(); }
   else load();
   window.coachUser?.(user?.id);
 }
@@ -80,6 +81,8 @@ async function load(){
     ]);
     if(id!==loadId)return;
     exercises=e.map(r=>({...r,increment:Number(r.increment)})); sets=s.map(r=>({...r,weight:Number(r.weight),reps:Number(r.reps)}));
+    try{ const c=await readAll(()=>db.from('cardio').select('*',{count:'exact'}).order('performed_on',{ascending:false}).order('created_at',{ascending:false})); if(id!==loadId)return; cardio=c.map(r=>({...r,minutes:Number(r.minutes),speed:r.speed==null?null:Number(r.speed),calories:r.calories==null?null:Number(r.calories)})); cardioReady=true; }
+    catch(err){ if(id!==loadId)return; cardio=[]; cardioReady=!/relation .* does not exist|schema cache/i.test(err.message||''); if(cardioReady) message('cardio-message',err.message||'Could not load cardio.','error'); }
     if(!exercises.some(x=>x.id===picked)) picked=lastTrainedExercise()||exercises.find(x=>!x.archived)?.id||'';
     render();
   }catch(err){ if(id!==loadId)return; const missing=/relation .* does not exist|schema cache/i.test(err.message||''); message('history-message',missing?'Run setup.sql in your Supabase SQL editor once, then reload.':(err.message||'Could not load your training.'),'error'); }
@@ -108,20 +111,20 @@ function isPR(exerciseId,day,value){ for(const s of sets) if(s.exercise_id===exe
 
 function render(){
   const t=today(), ws=weekStart(t);
-  const days=[...new Set(sets.map(s=>s.performed_on))].sort().reverse();
-  const weekDays=days.filter(d=>d>=ws);
+  const days=[...new Set(sets.map(s=>s.performed_on).concat(cardio.map(c=>c.performed_on)))].sort().reverse();
+  const weekDays=days.filter(d=>d>=ws); const any=sets.length||cardio.length;
   const weekVol=sets.filter(s=>s.performed_on>=ws).reduce((a,s)=>a+s.weight*s.reps,0);
   let streak=0; { let w=ws; const weeks=new Set(days.map(weekStart)); if(!weeks.has(w)) w=addDays(w,-7); while(weeks.has(w)){ streak++; w=addDays(w,-7); } }
   const monthStart=t.slice(0,8)+'01';
   let prs=0; for(const ex of exercises) for(const se of sessions(ex.id)) if(se.day>=monthStart&&isPR(ex.id,se.day,se.e1rm)) prs++;
-  $('week-count').textContent=sets.length?String(weekDays.length):'—';
-  $('week-note').textContent=sets.length?`${days.length} workout${days.length===1?'':'s'} logged · week of ${shortDate(ws)}`:'Your first workout starts here.';
-  $('side-week').textContent=sets.length?String(weekDays.length):'—'; $('side-total').textContent=sets.length?String(days.length):'—';
-  $('tile-last').textContent=days[0]?shortDate(days[0]):'—'; $('tile-last-note').textContent=days[0]?[...new Set(sets.filter(s=>s.performed_on===days[0]).map(s=>exById(s.exercise_id)?.name).filter(Boolean))].slice(0,3).join(', '):'';
+  $('week-count').textContent=any?String(weekDays.length):'—';
+  $('week-note').textContent=any?`${days.length} workout${days.length===1?'':'s'} logged · week of ${shortDate(ws)}`:'Your first workout starts here.';
+  $('side-week').textContent=any?String(weekDays.length):'—'; $('side-total').textContent=any?String(days.length):'—';
+  $('tile-last').textContent=days[0]?shortDate(days[0]):'—'; $('tile-last-note').textContent=days[0]?[...new Set(sets.filter(s=>s.performed_on===days[0]).map(s=>exById(s.exercise_id)?.name).filter(Boolean).concat(cardio.filter(c=>c.performed_on===days[0]).map(c=>kindName(c.kind))))].slice(0,3).join(', '):'';
   $('tile-volume').textContent=sets.length?num(weekVol):'—'; $('tile-volume-note').textContent=sets.length?`weight × reps · ${exercises[0]?.unit||'lbs'}`:'weight × reps';
-  $('tile-streak').textContent=sets.length?String(streak):'—';
+  $('tile-streak').textContent=any?String(streak):'—';
   $('tile-prs').textContent=sets.length?String(prs):'—';
-  renderPicker(); renderNext(); drawLine(); renderLog(); renderLibrary();
+  renderPicker(); renderNext(); drawLine(); renderLog(); renderCardio(); renderLibrary();
 }
 function renderPicker(){
   const live=exercises.filter(x=>!x.archived);
@@ -205,6 +208,63 @@ async function exportCsv(name,header,rows){
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },1000);
 }
 $('csv-log').onclick=()=>exportCsv('gym-sets.csv',['date','exercise','set','weight','reps','unit','note'],sets.slice().sort((a,b)=>a.performed_on<b.performed_on?1:a.performed_on>b.performed_on?-1:a.set_no-b.set_no).map(s=>{ const ex=exById(s.exercise_id); return [s.performed_on,ex?.name||'',s.set_no,s.weight,s.reps,ex?.unit||'',s.note]; }));
+
+// ---- cardio ----
+const KINDS={treadmill:'Treadmill',stairmaster:'Stairmaster',bike:'Bike'};
+const KIND_COLORS={treadmill:'#3987e5',stairmaster:'#d95926',bike:'#199e70'};
+const kindName=k=>KINDS[k]||(k?k.charAt(0).toUpperCase()+k.slice(1):'Cardio');
+const kindColor=k=>KIND_COLORS[k]||'#9085e9';
+const fmtMin=m=>{ const v=Math.round(m); return v>=60?`${Math.floor(v/60)} h ${v%60?v%60+' min':''}`.trim():`${v} min`; };
+function renderCardio(){
+  if(!user) return;
+  if(!cardioReady){ $('cardio-list').innerHTML='<p class="row-empty">Run cardio.sql in your Supabase SQL editor once to switch on cardio.</p>'; for(const id of ['c-week-min','c-week-cal','c-fav','c-long']) $(id).textContent='—'; $('cardio-count').textContent=''; return; }
+  const ws=weekStart(today()), week=cardio.filter(c=>c.performed_on>=ws);
+  const wMin=week.reduce((a,c)=>a+c.minutes,0), wCal=week.reduce((a,c)=>a+(c.calories||0),0);
+  $('c-week-min').textContent=cardio.length?String(Math.round(wMin)):'—'; $('c-week-note').textContent=`minutes · ${week.length} session${week.length===1?'':'s'}`;
+  $('c-week-cal').textContent=cardio.length?String(Math.round(wCal)):'—';
+  const counts={}; for(const c of cardio) counts[c.kind]=(counts[c.kind]||0)+1; const fav=Object.entries(counts).sort((a,b)=>b[1]-a[1])[0];
+  $('c-fav').textContent=fav?kindName(fav[0]):'—'; $('c-fav-note').textContent=fav?`${fav[1]} session${fav[1]===1?'':'s'}`:'most sessions';
+  const long=cardio.reduce((a,c)=>!a||c.minutes>a.minutes?c:a,null); $('c-long').textContent=long?fmtMin(long.minutes):'—'; $('c-long-note').textContent=long?`${kindName(long.kind)} · ${shortDate(long.performed_on)}`:'';
+  $('cardio-count').textContent=cardio.length?`${cardio.length} session${cardio.length===1?'':'s'}`:'';
+  if(!cardio.length){ $('cardio-list').innerHTML='<p class="row-empty">No cardio yet. Log a treadmill, stairmaster or bike session.</p>'; return; }
+  $('cardio-list').innerHTML=cardio.slice(0,40).map(c=>{ const bits=[fmtMin(c.minutes)]; if(c.speed!=null) bits.push(`${num(c.speed)} ${c.speed_unit}`); if(c.calories!=null) bits.push(`${Math.round(c.calories)} kcal`);
+    return `<div class="row"><span class="dot" style="background:${kindColor(c.kind)}"></span><div class="who"><b>${esc(kindName(c.kind))}</b><small>${esc(longDate(c.performed_on))}${c.note?' · '+esc(c.note):''}</small></div><span class="amt">${esc(bits.join(' · '))}</span><div class="ops"><button class="text-button" data-c-edit="${c.id}" type="button">Edit</button><button class="text-button" data-c-del="${c.id}" type="button">Delete</button></div></div>`; }).join('')+(cardio.length>40?`<p class="row-empty">Showing the latest 40 of ${cardio.length}.</p>`:'');
+}
+let cKind='treadmill';
+const SPEED_DEFAULT={treadmill:'mph',stairmaster:'spm',bike:'rpm',other:'mph'};
+function pickKind(k,keepUnit){ const known=['treadmill','stairmaster','bike'].includes(k); cKind=known?k:'other'; document.querySelectorAll('#c-kind [data-kind]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.kind===cKind))); $('c-kind-other').hidden=cKind!=='other'; if(!known&&k&&k!=='other') $('c-kind-other').value=k; if(!keepUnit) $('c-speed-unit').value=SPEED_DEFAULT[cKind]; $('c-speed-label').textContent=cKind==='stairmaster'?'Speed or level':cKind==='bike'?'Cadence or level':'Speed'; }
+$('c-kind').addEventListener('click',e=>{ const b=e.target.closest('[data-kind]'); if(!b)return; pickKind(b.dataset.kind); if(cKind==='other') $('c-kind-other').focus(); });
+function openCardio(c){
+  if(!user){ $('connection-dialog').showModal(); return; }
+  if(!cardioReady){ alert('Run cardio.sql in your Supabase SQL editor once to switch on cardio.'); return; }
+  $('c-id').value=c?.id||''; $('cardio-title').textContent=c?'Edit cardio.':'Log cardio.'; $('c-save').textContent=c?'Save changes ↗':'Save cardio ↗';
+  $('c-kind-other').value=''; pickKind(c?.kind||cardio[0]?.kind||'treadmill',!!c); if(c) $('c-speed-unit').value=c.speed_unit||'mph';
+  $('c-min').value=c?num(c.minutes):''; $('c-date').value=c?.performed_on||today(); $('c-speed').value=c?.speed!=null?num(c.speed):''; $('c-cal').value=c?.calories!=null?String(Math.round(c.calories)):''; $('c-note').value=c?.note||'';
+  message('c-message',''); $('cardio-dialog').showModal(); $('c-min').focus();
+}
+$('cardio-open').onclick=()=>openCardio(); $('cardio-open-2').onclick=()=>openCardio();
+$('cardio-close').onclick=()=>{ if(!busy)$('cardio-dialog').close(); };
+$('cardio-dialog').addEventListener('cancel',e=>{ if(busy)e.preventDefault(); });
+$('cardio-form').addEventListener('submit',async e=>{
+  e.preventDefault(); if(busy||!user)return; busy=true; $('c-save').disabled=true;
+  try{
+    const kind=cKind==='other'?($('c-kind-other').value.trim().toLowerCase()||'other'):cKind;
+    const minutes=parseNum($('c-min').value,'length in minutes'); if(!minutes) throw new Error('Enter how many minutes.');
+    const opt=(v,label)=>v.trim()===''?null:parseNum(v,label);
+    const row={performed_on:$('c-date').value,kind,minutes,speed:opt($('c-speed').value,'speed'),speed_unit:$('c-speed-unit').value,calories:opt($('c-cal').value,'calorie count'),note:$('c-note').value.trim()};
+    if(!row.performed_on) throw new Error('Pick a date.');
+    const db=await connect(); const id=$('c-id').value; const q=id?db.from('cardio').update(row).eq('id',id):db.from('cardio').insert(row); const {error}=await q; if(error)throw error;
+    $('cardio-dialog').close(); await load();
+  }catch(err){ message('c-message',err.message||'Could not save.','error'); }
+  finally{ busy=false; $('c-save').disabled=false; }
+});
+document.addEventListener('click',async e=>{
+  const b=e.target.closest('button[data-c-edit],button[data-c-del]'); if(!b||busy)return;
+  if(b.dataset.cEdit) return openCardio(cardio.find(c=>c.id===b.dataset.cEdit));
+  const c=cardio.find(x=>x.id===b.dataset.cDel); if(!c||!confirm(`Delete this ${kindName(c.kind).toLowerCase()} session from ${shortDate(c.performed_on)}?`))return;
+  busy=true; try{ const db=await connect(); const {error}=await db.from('cardio').delete().eq('id',c.id); if(error)throw error; await load(); }catch(err){ message('cardio-message',err.message||'Could not delete.','error'); } finally{ busy=false; }
+});
+$('csv-cardio').onclick=()=>exportCsv('gym-cardio.csv',['date','type','minutes','speed','speed_unit','calories','note'],cardio.map(c=>[c.performed_on,kindName(c.kind),c.minutes,c.speed??'',c.speed==null?'':c.speed_unit,c.calories??'',c.note]));
 // ---- forms ----
 function parseNum(s,label){ const v=Number(String(s).replace(',','.')); if(!Number.isFinite(v)||v<0) throw new Error(`Enter a ${label} like 135.`); return Math.round(v*100)/100; }
 function setRow(i,w='',r=''){ return `<div class="set-row"><span>${i+1}</span><input type="text" inputmode="decimal" placeholder="weight" value="${esc(w)}" aria-label="Set ${i+1} weight"><input type="number" inputmode="numeric" min="0" max="1000" placeholder="reps" value="${esc(r)}" aria-label="Set ${i+1} reps"><button type="button" aria-label="Remove set ${i+1}">×</button></div>`; }
@@ -271,7 +331,7 @@ document.querySelectorAll('[data-range]').forEach(b=>b.onclick=()=>{ range=b.dat
 // What the coach reads: every exercise with its target, the last sessions of each, and how often you trained.
 function coachSummary(){
   const t=today(); const L=[];
-  const days=[...new Set(sets.map(s=>s.performed_on))].sort();
+  const days=[...new Set(sets.map(s=>s.performed_on).concat(cardio.map(c=>c.performed_on)))].sort();
   const weeks=[]; for(let i=7;i>=0;i--){ const e=addDays(t,-i*7), s=addDays(e,-6); weeks.push(`${s}: ${days.filter(d=>d>=s&&d<=e).length}`); }
   L.push(`Workouts logged: ${days.length} total, ${days.filter(d=>d>=addDays(t,-29)).length} in the last 30 days. Last workout: ${days.at(-1)||'none'}.`);
   L.push('Workouts per week, oldest first: '+weeks.join('; ')+'.');
@@ -280,6 +340,9 @@ function coachSummary(){
     L.push(`\nExercise: ${ex.name} (${ex.muscle}). Target ${ex.target_sets}×${ex.target_reps}, +${num(ex.increment)} ${ex.unit} when hit. ${hist.length} sessions.${best?` Best estimated 1RM ${best.e1rm.toFixed(0)} ${ex.unit} on ${best.day}.`:''} Next suggested: ${s.weight===null?'start':fmtW(s.weight,ex.unit)}.`);
     for(const h of hist.slice(-6)) L.push(`  ${h.day}: ${h.rows.map(r=>`${num(r.weight)}×${r.reps}`).join(' ')} (est 1RM ${h.e1rm.toFixed(0)}, volume ${num(h.volume)})${h.note?' note: '+h.note:''}`);
   }
+  if(cardio.length){ const recent=cardio.filter(c=>c.performed_on>=addDays(t,-29)); L.push(`\nCardio: ${cardio.length} sessions total, ${recent.length} in the last 30 days, ${Math.round(recent.reduce((a,c)=>a+c.minutes,0))} minutes and ${Math.round(recent.reduce((a,c)=>a+(c.calories||0),0))} kcal in that time.`);
+    for(const c of cardio.slice(0,12)) L.push(`  ${c.performed_on}: ${kindName(c.kind)} ${num(c.minutes)} min${c.speed!=null?`, ${num(c.speed)} ${c.speed_unit}`:''}${c.calories!=null?`, ${Math.round(c.calories)} kcal`:''}${c.note?' note: '+c.note:''}`); }
+  else L.push('\nCardio: none logged.');
   return L.join('\n');
 }
 window.coach={app:'gym',userId:async()=>user?.id||null,session:async()=>{ try{ const db=await connect(); const {data:{session}}=await db.auth.getSession(); return session?.access_token||null; }catch{ return null; } },summary:coachSummary};
