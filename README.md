@@ -28,6 +28,10 @@ Log treadmill, stairmaster, bike or any other cardio with its length, speed and 
 
 A card near the top reads your own recent data and tells you how you are doing: a score out of ten, what is going well, what to change, and one next step. Nothing is sent until you press **Ask the coach**, and the last answer is kept on your device. It runs on Claude through a small Vercel function, so you need one extra environment variable in Vercel: `ANTHROPIC_API_KEY`, created at console.anthropic.com under API keys. Each ask costs about a cent. Without the key, the card simply says the coach is off.
 
+## Apple Watch
+
+Log sets from your wrist without taking out your phone. The watch app in [watch/](watch/) writes to the same tables on the same login, so its sets show up here and in YOU automatically. Building it needs a Mac with Xcode; the steps are in [watch/README.md](watch/README.md).
+
 ## Run locally
 
 ```

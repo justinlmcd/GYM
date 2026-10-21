@@ -1,0 +1,38 @@
+# GYM for Apple Watch
+
+Log sets from your wrist. Pick an exercise, turn the Digital Crown to set weight and reps, tap **Log set**. Each set goes straight into the same `sets` table the GYM web app uses, on the same login, so it shows up in GYM's history, progress lines and coach, and in YOU's workout count, with no syncing step.
+
+- **Your exercises** come from GYM. Add or edit them on the web; the watch lists the ones that aren't archived.
+- **Weight starts at GYM's suggestion**: the progressive-overload rule from the web app, based on your last session before today. After your first set it starts from your last set.
+- **The crown moves weight by the exercise's increment** (falling back to 5 lbs or 2.5 kg if the increment is 0). Tap reps to move the crown to reps.
+- **A rest timer** counts up from your last logged set.
+- **No signal at the gym?** Sets are saved on the watch and upload the next time the app opens with a connection. Each set has its own ID, so a retry never logs it twice.
+- **Swipe a set left** to delete it.
+
+Sets you log on the watch are dated with your local day, like the web app. If you edit that day's workout in the web app afterwards, the web app's save replaces the sets for that exercise and day, as it always does.
+
+## Install it (about 15 minutes, needs a Mac)
+
+You need a Mac with **Xcode 15 or later**, your iPhone, and your Apple Watch on **watchOS 10 or later**. A free Apple ID works for signing; with a free account the app stops opening after 7 days and you reinstall it from Xcode. A paid Apple Developer account removes that limit.
+
+1. **Make the project.** In Xcode: **File → New → Project → watchOS → App**. Name it `GYM`, interface **SwiftUI**, and choose **Watch-only App**. Save it inside this `watch/` folder.
+2. **Swap in the code.** In the project navigator, delete the generated `ContentView.swift` and `GYMApp.swift` (Move to Trash). Then drag every `.swift` file from `watch/GYMWatch/` onto the watch app's folder in Xcode. Leave **Copy items if needed** unticked, and tick the watch app target.
+3. **Add your Supabase settings.** Open `Config.swift` and paste your project URL and publishable key (`sb_publishable_…`), the same two values as the GYM web app's Vercel settings. The publishable key is the public one; never use a secret or service-role key.
+4. **Sign the app.** Select the project → the watch app target → **Signing & Capabilities** → choose your Apple ID under **Team**. Check that **Minimum Deployments** is watchOS 10.0 or later.
+5. **Turn on Developer Mode.** Plug your iPhone into the Mac and trust it. On the iPhone: **Settings → Privacy & Security → Developer Mode** → on. On the watch: **Settings → Privacy & Security → Developer Mode** → on. Both restart.
+6. **Run it.** In Xcode's run destination menu, pick your Apple Watch, then press **Run** (⌘R). The first install can take a few minutes. With a free account, on the watch go to **Settings → General → VPN & Device Management** and trust your developer profile if asked.
+7. **Sign in** on the watch with the same email and password as the GYM web app. You stay signed in.
+
+To try it without a watch first, pick an Apple Watch simulator as the run destination.
+
+## What's in it
+
+- `GYMWatchApp.swift`: app entry; shows sign-in or your exercises, and retries unsent sets when the app opens
+- `ExerciseListView.swift`: your exercises, today's ones first, with today's set count or the next suggested weight
+- `LogSetView.swift`: weight and reps on the crown, **Log set**, today's sets and the rest timer
+- `SignInView.swift`: one-time sign-in
+- `Store.swift`: loads exercises and recent sets, the overload rule, the offline queue
+- `Supabase.swift`: sign-in, token refresh and the REST calls (no packages to install)
+- `Keychain.swift`: keeps your session on the watch
+- `Models.swift`: the `exercises` and `sets` rows, plus date helpers
+- `Config.swift`: your Supabase URL and publishable key
