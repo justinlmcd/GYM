@@ -54,16 +54,20 @@ actor Supabase {
         }
     }
 
-    // Ignore-duplicates on the primary key makes a retry of the same set harmless.
-    func insert(_ set: LoggedSet) async throws {
-        var req = try await request("sets", method: "POST")
+    func cardio(on day: String) async throws -> [CardioSession] {
+        try await get("cardio?select=id,performed_on,kind,minutes,speed,speed_unit,calories&performed_on=eq.\(day)&order=created_at")
+    }
+
+    // Ignore-duplicates on the primary key makes a retry of the same row harmless.
+    func insert<T: Encodable & Sendable>(_ row: T, into table: String) async throws {
+        var req = try await request(table, method: "POST")
         req.setValue("return=minimal,resolution=ignore-duplicates", forHTTPHeaderField: "Prefer")
-        req.httpBody = try JSONEncoder().encode([set])
+        req.httpBody = try JSONEncoder().encode([row])
         _ = try await send(req)
     }
 
-    func delete(setId: UUID) async throws {
-        let req = try await request("sets?id=eq.\(setId.uuidString.lowercased())", method: "DELETE")
+    func delete(from table: String, id: UUID) async throws {
+        let req = try await request("\(table)?id=eq.\(id.uuidString.lowercased())", method: "DELETE")
         _ = try await send(req)
     }
 

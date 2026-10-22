@@ -25,12 +25,13 @@ struct ExerciseListView: View {
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
+                NavigationLink { CardioView() } label: { CardioLinkRow() }
                 ForEach(ordered) { ex in
                     NavigationLink(value: ex) { ExerciseRow(exercise: ex) }
                 }
                 Section {
                     Button("Refresh") { Task { await store.load() } }
-                    Button(store.pending.isEmpty ? "Sign out" : "Sign out (unsynced sets will be lost)", role: .destructive) {
+                    Button(store.pending.isEmpty && store.pendingCardio.isEmpty ? "Sign out" : "Sign out (unsynced logs will be lost)", role: .destructive) {
                         Task { await store.signOut() }
                     }
                 } footer: {
@@ -41,6 +42,28 @@ struct ExerciseListView: View {
             .navigationDestination(for: Exercise.self) { LogSetView(exercise: $0) }
             .overlay { if store.loading && store.exercises.isEmpty { ProgressView() } }
             .refreshable { await store.load() }
+        }
+    }
+}
+
+private struct CardioLinkRow: View {
+    @Environment(Store.self) private var store
+
+    var body: some View {
+        let today = store.todayCardio
+        VStack(alignment: .leading, spacing: 2) {
+            Label("Cardio", systemImage: "figure.run").font(.headline)
+            Group {
+                if store.cardioStartedAt != nil {
+                    Text("Timer running").foregroundStyle(.orange)
+                } else if let last = today.last {
+                    Text("\(last.label) · \(formatWeight(today.reduce(0) { $0 + $1.minutes })) min today").foregroundStyle(.green)
+                } else {
+                    Text("Treadmill, bike, stairs and more")
+                }
+            }
+            .font(.footnote)
+            .foregroundStyle(.secondary)
         }
     }
 }
