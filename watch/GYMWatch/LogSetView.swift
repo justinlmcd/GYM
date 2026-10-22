@@ -91,7 +91,7 @@ struct LogSetView: View {
     }
 }
 
-private struct Dial: View {
+struct Dial: View {
     let value: String
     let unit: String
     let active: Bool

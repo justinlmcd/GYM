@@ -35,6 +35,46 @@ struct LoggedSet: Codable, Identifiable, Hashable {
     }
 }
 
+// One row of public.cardio. Blank speed or calories are left out, so they save as empty.
+struct CardioSession: Codable, Identifiable, Hashable {
+    let id: UUID
+    let performedOn: String
+    let kind: String
+    let minutes: Double
+    let speed: Double?
+    let speedUnit: String
+    let calories: Double?
+
+    enum CodingKeys: String, CodingKey {
+        case id, kind, minutes, speed, calories
+        case performedOn = "performed_on"
+        case speedUnit = "speed_unit"
+    }
+
+    var label: String { CardioKind(rawValue: kind)?.label ?? kind.capitalized }
+}
+
+// GYM's cardio types. The web app saves "Other" types as their lowercase name, so
+// rowing and elliptical show up there by name.
+enum CardioKind: String, CaseIterable, Identifiable {
+    case treadmill, stairmaster, bike, rowing, elliptical, other
+
+    var id: String { rawValue }
+    var label: String { rawValue.capitalized }
+
+    var defaultUnit: String {
+        switch self {
+        case .treadmill: return "mph"
+        case .stairmaster: return "level"
+        case .bike: return "rpm"
+        case .rowing: return "spm"
+        case .elliptical, .other: return "level"
+        }
+    }
+
+    static let units = ["mph", "km/h", "level", "spm", "rpm"]
+}
+
 struct Session: Codable {
     var accessToken: String
     var refreshToken: String
