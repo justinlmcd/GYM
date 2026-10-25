@@ -1,6 +1,6 @@
 import Foundation
 
-struct Exercise: Codable, Identifiable, Hashable {
+nonisolated struct Exercise: Codable, Identifiable, Hashable {
     let id: UUID
     let name: String
     let unit: String
@@ -19,7 +19,7 @@ struct Exercise: Codable, Identifiable, Hashable {
 }
 
 // One row of public.sets. `id` is made on the watch so a retried upload never duplicates.
-struct LoggedSet: Codable, Identifiable, Hashable {
+nonisolated struct LoggedSet: Codable, Identifiable, Hashable {
     let id: UUID
     let exerciseId: UUID
     let performedOn: String
@@ -36,7 +36,7 @@ struct LoggedSet: Codable, Identifiable, Hashable {
 }
 
 // One row of public.cardio. Blank speed or calories are left out, so they save as empty.
-struct CardioSession: Codable, Identifiable, Hashable {
+nonisolated struct CardioSession: Codable, Identifiable, Hashable {
     let id: UUID
     let performedOn: String
     let kind: String
@@ -56,7 +56,7 @@ struct CardioSession: Codable, Identifiable, Hashable {
 
 // GYM's cardio types. The web app saves "Other" types as their lowercase name, so
 // rowing and elliptical show up there by name.
-enum CardioKind: String, CaseIterable, Identifiable {
+nonisolated enum CardioKind: String, CaseIterable, Identifiable {
     case treadmill, stairmaster, bike, rowing, elliptical, other
 
     var id: String { rawValue }
@@ -75,15 +75,15 @@ enum CardioKind: String, CaseIterable, Identifiable {
     static let units = ["mph", "km/h", "level", "spm", "rpm"]
 }
 
-struct Session: Codable {
+nonisolated struct Session: Codable {
     var accessToken: String
     var refreshToken: String
     var expiresAt: Date
     var email: String
 }
 
-enum Day {
-    private static let formatter: DateFormatter = {
+nonisolated enum Day {
+    nonisolated(unsafe) private static let formatter: DateFormatter = {
         let f = DateFormatter()
         f.calendar = Calendar(identifier: .gregorian)
         f.locale = Locale(identifier: "en_US_POSIX")
@@ -99,6 +99,6 @@ enum Day {
     }
 }
 
-func formatWeight(_ w: Double) -> String {
+nonisolated func formatWeight(_ w: Double) -> String {
     w.rounded() == w ? String(Int(w)) : String(format: "%g", w)
 }

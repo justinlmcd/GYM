@@ -14,7 +14,7 @@ Sets you log on the watch are dated with your local day, like the web app. If yo
 
 ## Install it (about 15 minutes, needs a Mac)
 
-You need a Mac with **Xcode 15 or later**, your iPhone, and your Apple Watch on **watchOS 10 or later**. A free Apple ID works for signing; with a free account the app stops opening after 7 days and you reinstall it from Xcode. A paid Apple Developer account removes that limit.
+You need a Mac with **Xcode 26 or later**, your iPhone, and your Apple Watch on **watchOS 10 or later**. A free Apple ID works for signing; with a free account the app stops opening after 7 days and you reinstall it from Xcode. A paid Apple Developer account removes that limit.
 
 1. **Make the project.** In Xcode: **File → New → Project → watchOS → App**. Name it `GYM`, interface **SwiftUI**, and choose **Watch-only App**. Save it inside this `watch/` folder.
 2. **Swap in the code.** In the project navigator, delete the generated `ContentView.swift` and `GYMApp.swift` (Move to Trash). Then drag every `.swift` file from `watch/GYMWatch/` onto the watch app's folder in Xcode. Leave **Copy items if needed** unticked, and tick the watch app target.
