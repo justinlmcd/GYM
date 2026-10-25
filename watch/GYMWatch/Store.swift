@@ -6,7 +6,7 @@ import Observation
 @MainActor
 @Observable
 final class Store {
-    private let api = Supabase()
+    private let api = Supabase(url: Config.supabaseURL, key: Config.publishableKey)
     private static let pendingKey = "pendingSets"
     private static let pendingCardioKey = "pendingCardio"
     private static let cardioStartKey = "cardioStartedAt"

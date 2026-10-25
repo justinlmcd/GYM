@@ -2,7 +2,7 @@ import Foundation
 import Security
 
 // Keeps the Supabase session on the watch so you sign in once.
-enum Keychain {
+nonisolated enum Keychain {
     private static let service = "gym.watch.session"
     private static let account = "supabase"
 

@@ -1,6 +1,6 @@
 import Foundation
 
-enum APIError: LocalizedError {
+nonisolated enum APIError: LocalizedError {
     case signedOut
     case server(Int, String)
 
@@ -19,12 +19,25 @@ enum APIError: LocalizedError {
     }
 }
 
+nonisolated private struct TokenResponse: Decodable {
+    let access_token: String
+    let refresh_token: String
+    let expires_in: Double
+}
+
 // Talks to Supabase Auth and the REST API directly, with the same login as the web app.
 // Row-level security in setup.sql fills in user_id and keeps rows private.
 actor Supabase {
     private(set) var session: Session?
+    private let baseURL: URL
+    private let key: String
 
-    init() { session = Keychain.load() }
+    // The URL and key are handed in from the main actor, so this works however Xcode isolates Config by default.
+    init(url: URL, key: String) {
+        baseURL = url
+        self.key = key
+        session = Keychain.load()
+    }
 
     var email: String? { session?.email }
 
@@ -80,10 +93,10 @@ actor Supabase {
 
     private func request(_ path: String, method: String) async throws -> URLRequest {
         let token = try await validToken()
-        var req = URLRequest(url: URL(string: "rest/v1/" + path, relativeTo: Config.supabaseURL)!)
+        var req = URLRequest(url: URL(string: "rest/v1/" + path, relativeTo: baseURL)!)
         req.httpMethod = method
         req.timeoutInterval = 15
-        req.setValue(Config.publishableKey, forHTTPHeaderField: "apikey")
+        req.setValue(key, forHTTPHeaderField: "apikey")
         req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         return req
@@ -122,17 +135,16 @@ actor Supabase {
     }
 
     private func requestToken(grantType: String, body: Data, email: String) async throws {
-        var req = URLRequest(url: URL(string: "auth/v1/token?grant_type=\(grantType)", relativeTo: Config.supabaseURL)!)
+        var req = URLRequest(url: URL(string: "auth/v1/token?grant_type=\(grantType)", relativeTo: baseURL)!)
         req.httpMethod = "POST"
         req.timeoutInterval = 15
-        req.setValue(Config.publishableKey, forHTTPHeaderField: "apikey")
+        req.setValue(key, forHTTPHeaderField: "apikey")
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         req.httpBody = body
         let (data, response) = try await URLSession.shared.data(for: req)
         let code = (response as? HTTPURLResponse)?.statusCode ?? 0
         guard (200..<300).contains(code) else { throw APIError.server(code, Self.message(data, code)) }
-        struct Token: Decodable { let access_token: String; let refresh_token: String; let expires_in: Double }
-        let t = try JSONDecoder().decode(Token.self, from: data)
+        let t = try JSONDecoder().decode(TokenResponse.self, from: data)
         let s = Session(accessToken: t.access_token, refreshToken: t.refresh_token,
                         expiresAt: Date().addingTimeInterval(t.expires_in), email: email)
         session = s
