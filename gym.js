@@ -21,7 +21,7 @@ const e1rm=(w,r)=>r<=1?w:w*(1+r/30);
 const bestText=(set,unit)=>set.weight>0?fmtW(e1rm(set.weight,set.reps).toFixed(0),unit):`${set.reps} reps`;
 
 let client=null,user=null,busy=false,authSub=null,connecting=null,storageCleanup=null;
-let exercises=[],sets=[],cardio=[],cardioReady=true,range='90',picked='',loadId=0,colorOf=new Map();
+let exercises=[],sets=[],cardio=[],cardioReady=true,workouts=[],workoutsReady=true,wOrder=[],range='90',picked='',loadId=0,colorOf=new Map();
 
 function message(id,text,kind=''){ $(id).textContent=text; $(id).className='message'+(kind?' '+kind:''); }
 $('ex-muscle').innerHTML=MUSCLES.map(m=>`<option>${esc(m)}</option>`).join('');
@@ -52,10 +52,10 @@ function setUser(next){
   user=next; loadId++;
   $('connect-open').hidden=!!user;
   for(const id of ['sign-out','log-open','log-open-2','ex-open','csv-log','cardio-open','cardio-open-2','csv-cardio']) $(id).hidden=!user;
-  $('cardio-fields').disabled=!user;
+  $('cardio-fields').disabled=!user; $('w-fields').disabled=!user;
   $('log-fields').disabled=!user; $('ex-fields').disabled=!user;
   $('connection-status').textContent=user?'Connected':'Your record'; $('connection-status').classList.toggle('connected',!!user);
-  if(!user){ exercises=[]; sets=[]; cardio=[]; picked=''; $('cardio-dialog').close(); render(); $('log-list').innerHTML='<p class="row-empty">Sign in to see your workouts.</p>'; $('ex-list').innerHTML='<p class="row-empty">Sign in to see your exercises.</p>'; $('log-dialog').close(); $('ex-dialog').close(); }
+  if(!user){ exercises=[]; sets=[]; cardio=[]; workouts=[]; picked=''; $('cardio-dialog').close(); $('w-dialog').close(); render(); $('log-list').innerHTML='<p class="row-empty">Sign in to see your workouts.</p>'; $('ex-list').innerHTML='<p class="row-empty">Sign in to see your exercises.</p>'; $('log-dialog').close(); $('ex-dialog').close(); }
   else load();
   window.coachUser?.(user?.id);
 }
@@ -83,6 +83,9 @@ async function load(){
     exercises=e.map(r=>({...r,increment:Number(r.increment)})); sets=s.map(r=>({...r,weight:Number(r.weight),reps:Number(r.reps)}));
     try{ const c=await readAll(()=>db.from('cardio').select('*',{count:'exact'}).order('performed_on',{ascending:false}).order('created_at',{ascending:false})); if(id!==loadId)return; cardio=c.map(r=>({...r,minutes:Number(r.minutes),speed:r.speed==null?null:Number(r.speed),calories:r.calories==null?null:Number(r.calories)})); cardioReady=true; }
     catch(err){ if(id!==loadId)return; cardio=[]; cardioReady=!/relation .* does not exist|schema cache/i.test(err.message||''); if(cardioReady) message('cardio-message',err.message||'Could not load cardio.','error'); }
+    // Workouts are optional (workouts.sql): without the table the rest of GYM works as before.
+    try{ const w=await readAll(()=>db.from('workouts').select('*',{count:'exact'}).order('name')); if(id!==loadId)return; workouts=w; workoutsReady=true; }
+    catch(err){ if(id!==loadId)return; workouts=[]; workoutsReady=!/relation .* does not exist|schema cache/i.test(err.message||''); if(workoutsReady) message('history-message',err.message||'Could not load workouts.','error'); }
     if(!exercises.some(x=>x.id===picked)) picked=lastTrainedExercise()||exercises.find(x=>!x.archived)?.id||'';
     render();
   }catch(err){ if(id!==loadId)return; const missing=/relation .* does not exist|schema cache/i.test(err.message||''); message('history-message',missing?'Run setup.sql in your Supabase SQL editor once, then reload.':(err.message||'Could not load your training.'),'error'); }
@@ -124,7 +127,7 @@ function render(){
   $('tile-volume').textContent=sets.length?num(weekVol):'—'; $('tile-volume-note').textContent=sets.length?`weight × reps · ${exercises[0]?.unit||'lbs'}`:'weight × reps';
   $('tile-streak').textContent=any?String(streak):'—';
   $('tile-prs').textContent=sets.length?String(prs):'—';
-  renderPicker(); renderNext(); drawLine(); renderLog(); renderCardio(); renderLibrary();
+  renderPicker(); renderNext(); drawLine(); renderLog(); renderCardio(); renderWorkouts(); renderLibrary();
 }
 function renderPicker(){
   const live=exercises.filter(x=>!x.archived);
@@ -181,6 +184,42 @@ function renderLog(){
       return `<div class="row"><span class="dot" style="background:${colorFor(ex.muscle)}"></span><div class="who"><b>${esc(ex.name)}${pr?'<span class="pr">PR</span>':''}</b><small class="sets-line">${rows.map(s=>`${num(s.weight)}×${s.reps}`).join('  ')}${rows.find(r=>r.note)?' · '+esc(rows.find(r=>r.note).note):''}</small></div><span class="amt">${esc(bestText(best,ex.unit))}</span><div class="ops"><button class="text-button" data-log-edit="${exId}|${day}" type="button">Edit</button><button class="text-button" data-log-del="${exId}|${day}" type="button">Delete</button></div></div>`; }).join('')}</div></div>`;
   }).join('')+(days.length>30?`<p class="row-empty">Showing the latest 30 of ${days.length} workouts.</p>`:'');
 }
+// ---- workouts: a named list of exercises, in order, to start on the watch ----
+function renderWorkouts(){
+  $('w-open').hidden=!user||!workoutsReady; $('w-count').textContent=workouts.length?`${workouts.length} total`:'';
+  if(!user){ $('w-list').innerHTML='<p class="row-empty">Sign in to see your workouts.</p>'; return; }
+  if(!workoutsReady){ $('w-list').innerHTML='<p class="row-empty">To build workouts like "Chest day 1", run workouts.sql in your Supabase SQL editor once, then reload.</p>'; return; }
+  if(!workouts.length){ $('w-list').innerHTML='<p class="row-empty">No workouts yet. Build one, like "Chest day 1", from your exercises, then start it on your Apple Watch.</p>'; return; }
+  $('w-list').innerHTML=workouts.map(w=>{ const names=w.exercise_ids.map(exById).filter(Boolean).map(x=>x.name);
+    return `<div class="row"><span class="dot" style="background:var(--mint)"></span><div class="who"><b>${esc(w.name)}</b><small>${names.length} exercise${names.length===1?'':'s'}${names.length?' · '+esc(names.join(' → ')):''}</small></div><span></span><div class="ops"><button class="text-button" data-w-edit="${w.id}" type="button">Edit</button><button class="text-button" data-w-del="${w.id}" type="button">Delete</button></div></div>`; }).join('');
+}
+function openWorkout(w){
+  if(!user){ $('connection-dialog').showModal(); return; }
+  $('w-id').value=w?.id||''; $('w-title').textContent=w?'Edit workout.':'New workout.'; $('w-name').value=w?.name||'';
+  wOrder=(w?.exercise_ids||[]).filter(id=>exById(id)); paintOrder(); message('w-msg',''); $('w-dialog').showModal(); $('w-name').focus();
+}
+function paintOrder(){
+  $('w-order').innerHTML=wOrder.length?wOrder.map((id,i)=>{ const n=esc(exById(id).name); return `<li><span>${n}</span><span class="ops"><button type="button" data-w-up="${i}" aria-label="Move ${n} up"${i?'':' disabled'}>↑</button><button type="button" data-w-down="${i}" aria-label="Move ${n} down"${i<wOrder.length-1?'':' disabled'}>↓</button><button type="button" data-w-rm="${i}" aria-label="Remove ${n}">×</button></span></li>`; }).join(''):'<li class="w-empty">Add the first exercise below.</li>';
+  const left=exercises.filter(x=>!x.archived&&!wOrder.includes(x.id));
+  $('w-pick').innerHTML=left.length?left.map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join(''):`<option value="">${exercises.length?'All your exercises are in':'Create an exercise first'}</option>`; $('w-add').disabled=!left.length;
+}
+$('w-order').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b)return; const d=b.dataset;
+  if(d.wUp){ const i=+d.wUp; [wOrder[i-1],wOrder[i]]=[wOrder[i],wOrder[i-1]]; }
+  else if(d.wDown){ const i=+d.wDown; [wOrder[i+1],wOrder[i]]=[wOrder[i],wOrder[i+1]]; }
+  else if(d.wRm) wOrder.splice(+d.wRm,1);
+  paintOrder(); });
+$('w-add').onclick=()=>{ const id=$('w-pick').value; if(id&&!wOrder.includes(id)){ wOrder.push(id); paintOrder(); $('w-pick').focus(); } };
+$('w-open').onclick=()=>openWorkout(); $('w-close').onclick=()=>{ if(!busy)$('w-dialog').close(); };
+$('w-form').addEventListener('submit',async e=>{
+  e.preventDefault(); if(busy||!user)return; busy=true; $('w-save').disabled=true;
+  try{ const row={name:$('w-name').value.trim(),exercise_ids:wOrder.slice(),updated_at:new Date().toISOString()};
+    if(!row.name) throw new Error('Give it a name, like "Chest day 1".'); if(!row.exercise_ids.length) throw new Error('Add at least one exercise.');
+    const db=await connect(); const id=$('w-id').value; const {error}=await (id?db.from('workouts').update(row).eq('id',id):db.from('workouts').insert(row)); if(error)throw error;
+    $('w-dialog').close(); await load(); }
+  catch(err){ message('w-msg',err.message||'Could not save.','error'); }
+  finally{ busy=false; $('w-save').disabled=false; }
+});
+
 function renderLibrary(){
   $('ex-count').textContent=exercises.length?`${exercises.length} total`:'';
   if(!exercises.length){ $('ex-list').innerHTML='<p class="row-empty">No exercises yet. Create one with a target, like 3 sets of 8, and GYM will tell you when to add weight.</p>'; return; }
@@ -289,7 +328,7 @@ function openEx(row){
 }
 $('log-open').onclick=()=>openLog(); $('log-open-2').onclick=()=>openLog(); $('next-log').onclick=()=>openLog({exercise:picked}); $('ex-open').onclick=()=>openEx();
 $('log-close').onclick=()=>{ if(!busy)$('log-dialog').close(); }; $('ex-close').onclick=()=>{ if(!busy)$('ex-dialog').close(); };
-for(const id of ['log-dialog','ex-dialog','connection-dialog']) $(id).addEventListener('cancel',e=>{ if(busy)e.preventDefault(); });
+for(const id of ['log-dialog','ex-dialog','w-dialog','connection-dialog']) $(id).addEventListener('cancel',e=>{ if(busy)e.preventDefault(); });
 $('log-form').addEventListener('submit',async e=>{
   e.preventDefault(); if(busy||!user)return; busy=true; $('log-save').disabled=true;
   try{
@@ -313,13 +352,15 @@ $('ex-form').addEventListener('submit',async e=>{
   finally{ busy=false; $('ex-save').disabled=false; }
 });
 document.addEventListener('click',async e=>{
-  const b=e.target.closest('button[data-log-edit],button[data-log-del],button[data-ex-edit],button[data-ex-del],button[data-ex-chart]'); if(!b||busy)return;
+  const b=e.target.closest('button[data-log-edit],button[data-log-del],button[data-ex-edit],button[data-ex-del],button[data-ex-chart],button[data-w-edit],button[data-w-del]'); if(!b||busy)return;
   if(b.dataset.logEdit) return openLog({edit:b.dataset.logEdit});
+  if(b.dataset.wEdit) return openWorkout(workouts.find(w=>w.id===b.dataset.wEdit));
   if(b.dataset.exEdit) return openEx(exById(b.dataset.exEdit));
   if(b.dataset.exChart){ picked=b.dataset.exChart; render(); $('gym').scrollIntoView({behavior:'smooth'}); return; }
   busy=true;
   try{ const db=await connect();
-    if(b.dataset.logDel){ const [exId,day]=b.dataset.logDel.split('|'); if(!confirm('Delete this exercise from the workout?')) return; const {error}=await db.from('sets').delete().eq('exercise_id',exId).eq('performed_on',day); if(error)throw error; }
+    if(b.dataset.wDel){ const w=workouts.find(x=>x.id===b.dataset.wDel); if(!w||!confirm(`Delete the workout "${w.name}"? Your logged sets stay.`)) return; const {error}=await db.from('workouts').delete().eq('id',w.id); if(error)throw error; }
+    else if(b.dataset.logDel){ const [exId,day]=b.dataset.logDel.split('|'); if(!confirm('Delete this exercise from the workout?')) return; const {error}=await db.from('sets').delete().eq('exercise_id',exId).eq('performed_on',day); if(error)throw error; }
     else { const ex=exById(b.dataset.exDel); const n=sessions(ex.id).length; if(!confirm(n?`Delete ${ex.name} and its ${n} logged session${n===1?'':'s'}?`:`Delete ${ex.name}?`)) return; const {error}=await db.from('exercises').delete().eq('id',ex.id); if(error)throw error; }
     await load();
   }catch(err){ message('history-message',err.message||'Could not delete.','error'); } finally{ busy=false; }

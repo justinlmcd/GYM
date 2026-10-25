@@ -75,6 +75,24 @@ nonisolated enum CardioKind: String, CaseIterable, Identifiable {
     static let units = ["mph", "km/h", "level", "spm", "rpm"]
 }
 
+// A workout from GYM, like "Chest day 1": its exercises, in order.
+nonisolated struct Workout: Codable, Identifiable, Hashable {
+    let id: UUID
+    let name: String
+    let exerciseIds: [UUID]
+
+    enum CodingKeys: String, CodingKey {
+        case id, name
+        case exerciseIds = "exercise_ids"
+    }
+}
+
+// One exercise opened from a workout, so its screen can offer the next one.
+nonisolated struct WorkoutStep: Hashable {
+    let workout: Workout
+    let exerciseId: UUID
+}
+
 nonisolated struct Session: Codable {
     var accessToken: String
     var refreshToken: String

@@ -6,6 +6,8 @@ import WatchKit
 struct LogSetView: View {
     @Environment(Store.self) private var store
     let exercise: Exercise
+    // Set when opened from a workout: once the target sets are in, it offers the next exercise.
+    var workout: Workout? = nil
 
     private enum Field { case weight, reps }
     @FocusState private var focus: Field?
@@ -45,6 +47,18 @@ struct LogSetView: View {
                 .tint(.green)
                 .buttonStyle(.borderedProminent)
                 .listRowBackground(Color.clear)
+
+                if let workout, sets.count >= exercise.targetSets {
+                    if let next = nextInWorkout {
+                        NavigationLink(value: WorkoutStep(workout: workout, exerciseId: next.id)) {
+                            Label("Next: \(next.name)", systemImage: "arrow.right.circle.fill")
+                                .foregroundStyle(.orange)
+                        }
+                    } else {
+                        Label("Last exercise done", systemImage: "checkmark.circle.fill")
+                            .foregroundStyle(.green)
+                    }
+                }
             } footer: {
                 Text(suggestion.why)
             }
@@ -88,6 +102,13 @@ struct LogSetView: View {
             }
             focus = .weight
         }
+    }
+
+    private var nextInWorkout: Exercise? {
+        guard let workout else { return nil }
+        let list = store.exercises(in: workout)
+        guard let i = list.firstIndex(where: { $0.id == exercise.id }) else { return nil }
+        return list.dropFirst(i + 1).first
     }
 }
 
