@@ -25,9 +25,20 @@ struct ExerciseListView: View {
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
-                NavigationLink { CardioView() } label: { CardioLinkRow() }
-                ForEach(ordered) { ex in
-                    NavigationLink(value: ex) { ExerciseRow(exercise: ex) }
+                if !store.workouts.isEmpty {
+                    Section("Workouts") {
+                        ForEach(store.workouts) { w in
+                            NavigationLink(value: w) { WorkoutLinkRow(workout: w) }
+                        }
+                    }
+                }
+                Section {
+                    NavigationLink { CardioView() } label: { CardioLinkRow() }
+                    ForEach(ordered) { ex in
+                        NavigationLink(value: ex) { ExerciseRow(exercise: ex) }
+                    }
+                } header: {
+                    if !store.workouts.isEmpty { Text("Exercises") }
                 }
                 Section {
                     Button("Refresh") { Task { await store.load() } }
@@ -40,8 +51,38 @@ struct ExerciseListView: View {
             }
             .navigationTitle("GYM")
             .navigationDestination(for: Exercise.self) { LogSetView(exercise: $0) }
+            .navigationDestination(for: Workout.self) { WorkoutView(workout: $0) }
+            .navigationDestination(for: WorkoutStep.self) { step in
+                if let ex = store.exercises.first(where: { $0.id == step.exerciseId }) {
+                    LogSetView(exercise: ex, workout: step.workout)
+                }
+            }
             .overlay { if store.loading && store.exercises.isEmpty { ProgressView() } }
             .refreshable { await store.load() }
+        }
+    }
+}
+
+private struct WorkoutLinkRow: View {
+    @Environment(Store.self) private var store
+    let workout: Workout
+
+    var body: some View {
+        let list = store.exercises(in: workout)
+        let done = list.filter { store.isDone($0) }.count
+        VStack(alignment: .leading, spacing: 2) {
+            Label(workout.name, systemImage: "list.bullet.clipboard").font(.headline).lineLimit(2)
+            Group {
+                if !list.isEmpty && done == list.count {
+                    Text("Done today").foregroundStyle(.green)
+                } else if done > 0 {
+                    Text("\(done) of \(list.count) done today").foregroundStyle(.orange)
+                } else {
+                    Text("\(list.count) exercise\(list.count == 1 ? "" : "s")")
+                }
+            }
+            .font(.footnote)
+            .foregroundStyle(.secondary)
         }
     }
 }

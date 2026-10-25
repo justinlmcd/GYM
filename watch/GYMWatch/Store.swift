@@ -17,6 +17,7 @@ final class Store {
     var history: [LoggedSet] = []
     var pending: [LoggedSet] = []
     var cardio: [CardioSession] = []
+    var workouts: [Workout] = []
     var pendingCardio: [CardioSession] = []
     var cardioMissing = false
     private(set) var cardioStartedAt: Date?
@@ -59,6 +60,7 @@ final class Store {
         pending = []
         cardio = []
         pendingCardio = []
+        workouts = []
         setCardioTimer(nil)
         savePending()
     }
@@ -86,6 +88,14 @@ final class Store {
         } catch {
             handle(error)
         }
+        // Workouts are optional too (workouts.sql); without them the watch lists exercises as before.
+        do {
+            workouts = try await api.workouts()
+        } catch APIError.server(_, let message) where message.contains("schema cache") || message.contains("does not exist") {
+            workouts = []
+        } catch {
+            handle(error)
+        }
     }
 
     // MARK: - Reading
@@ -99,6 +109,13 @@ final class Store {
         let today = Day.string()
         return allSets.filter { $0.exerciseId == ex.id && $0.performedOn == today }.sorted { $0.setNo < $1.setNo }
     }
+
+    // A workout's exercises in its order, skipping any deleted or archived in GYM since.
+    func exercises(in workout: Workout) -> [Exercise] {
+        workout.exerciseIds.compactMap { id in exercises.first { $0.id == id } }
+    }
+
+    func isDone(_ ex: Exercise) -> Bool { todaySets(ex).count >= ex.targetSets }
 
     var todayCardio: [CardioSession] {
         let today = Day.string()

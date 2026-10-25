@@ -67,6 +67,10 @@ actor Supabase {
         }
     }
 
+    func workouts() async throws -> [Workout] {
+        try await get("workouts?select=id,name,exercise_ids&order=name")
+    }
+
     func cardio(on day: String) async throws -> [CardioSession] {
         try await get("cardio?select=id,performed_on,kind,minutes,speed,speed_unit,calories&performed_on=eq.\(day)&order=created_at")
     }

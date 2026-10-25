@@ -2,6 +2,7 @@
 
 Log sets and cardio from your wrist. Pick an exercise, turn the Digital Crown to set weight and reps, tap **Log set**. Each set goes straight into the same `sets` table the GYM web app uses, and cardio into the same `cardio` table, on the same login. So everything shows up in GYM's history, progress lines and coach, and in YOU's workout count, with no syncing step.
 
+- **Workouts** you build in GYM, like **Chest day 1**, are listed at the top. Tap one to start it: its exercises appear in order, with a check on each one you've finished today and the next one marked **up next**. Once you've logged an exercise's target sets, **Next** takes you straight to the following exercise. Workouts need GYM's workouts table; if you set GYM up before workouts existed, run [workouts.sql](../workouts.sql) once.
 - **Your exercises** come from GYM. Add or edit them on the web; the watch lists the ones that aren't archived.
 - **Weight starts at GYM's suggestion**: the progressive-overload rule from the web app, based on your last session before today. After your first set it starts from your last set.
 - **The crown moves weight by the exercise's increment** (falling back to 5 lbs or 2.5 kg if the increment is 0). Tap reps to move the crown to reps.
@@ -34,6 +35,7 @@ To try it without a watch first, pick an Apple Watch simulator as the run destin
 - `GYMWatchApp.swift`: app entry; shows sign-in or your exercises, and retries unsent sets when the app opens
 - `ExerciseListView.swift`: your exercises, today's ones first, with today's set count or the next suggested weight
 - `LogSetView.swift`: weight and reps on the crown, **Log set**, today's sets and the rest timer
+- `WorkoutView.swift`: a workout's exercises in order, with today's progress and what's up next
 - `CardioView.swift`: cardio type, the timer, minutes, calories and speed, and today's sessions
 - `SignInView.swift`: one-time sign-in
 - `Store.swift`: loads exercises, recent sets and today's cardio, the overload rule, the offline queue

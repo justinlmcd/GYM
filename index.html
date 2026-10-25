@@ -116,6 +116,12 @@ noscript{display:block;padding:20px;color:var(--error)}
 .brand-row{display:flex;align-items:center;justify-content:space-between;gap:10px}.home{width:34px;height:34px;border:1px solid var(--line);border-radius:8px;display:grid;place-items:center;color:var(--muted);text-decoration:none;flex:none}.home:hover{color:var(--mint);border-color:var(--mint)}.home svg{width:16px;height:16px}@media(max-width:760px){.brand-row{gap:12px}.home{width:32px;height:32px}}
 .kind-pick{display:flex;flex-wrap:wrap;width:100%}.kind-pick button{flex:1;min-width:0}.kind-pick button[aria-pressed=true]{background:var(--mint);color:#2a0707;font-weight:600}.section-head .right{display:flex;align-items:center;gap:18px;flex-wrap:wrap}.cardio-tiles{margin:0 0 6px}.kind-dot{width:8px;height:8px;border-radius:50%}
 @media(max-width:520px){.kind-pick button{padding:8px 6px;font-size:12px}}
+.w-order{list-style:none;margin:0 0 10px;padding:0;display:grid;gap:6px;counter-reset:w}
+.w-order li{display:grid;grid-template-columns:22px minmax(0,1fr) auto;gap:8px;align-items:center;padding:4px 6px 4px 12px;border:1px solid var(--line);border-radius:6px;font-size:14px;overflow-wrap:anywhere}
+.w-order li:before{content:counter(w);counter-increment:w;font:12px var(--mono);color:var(--muted)}
+.w-order li.w-empty{display:block;padding:10px 12px;color:var(--muted);border-style:dashed}.w-order li.w-empty:before{content:none}
+.w-order .ops{display:flex;gap:2px}.w-order .ops button{border:0;background:transparent;color:var(--muted);width:36px;height:36px;font-size:15px;border-radius:4px}.w-order .ops button:hover:not(:disabled){color:var(--mint)}
+.w-add{display:flex;gap:8px}.w-add select{flex:1;min-width:0}.w-add .quiet-button{flex:none}
 </style>
 </head>
 <body>
@@ -149,6 +155,7 @@ noscript{display:block;padding:20px;color:var(--error)}
 <section id="cardio" aria-label="Cardio"><div class="section-head"><div class="left"><h2>Cardio</h2><span id="cardio-count"></span></div><div class="right"><button class="text-button" id="csv-cardio" type="button" hidden>Download CSV</button><button class="text-button" id="cardio-open-2" type="button" hidden>Log cardio +</button></div></div>
 <div class="tiles cardio-tiles"><div class="tile"><p>This week</p><strong id="c-week-min">—</strong><small id="c-week-note">minutes</small></div><div class="tile"><p>Calories this week</p><strong id="c-week-cal">—</strong><small>burned on cardio</small></div><div class="tile"><p>Favourite</p><strong id="c-fav">—</strong><small id="c-fav-note">most sessions</small></div><div class="tile"><p>Longest</p><strong id="c-long">—</strong><small id="c-long-note"></small></div></div>
 <div class="rows" id="cardio-list"><p class="row-empty">Sign in to see your cardio.</p></div><p class="message" id="cardio-message" role="status"></p></section>
+<section id="workouts" aria-label="Workouts"><div class="section-head"><div class="left"><h2>Workouts</h2><span id="w-count"></span></div><button class="text-button" id="w-open" type="button" hidden>New workout +</button></div><div class="rows" id="w-list"><p class="row-empty">Sign in to see your workouts.</p></div></section>
 <section id="library" aria-label="Exercises"><div class="section-head"><div class="left"><h2>Exercises</h2><span id="ex-count"></span></div><button class="text-button" id="ex-open" type="button" hidden>New exercise +</button></div><div class="rows" id="ex-list"><p class="row-empty">Sign in to see your exercises.</p></div></section>
 <footer class="footer"><span>GYM · your training, in your database</span><a href="https://github.com/justinlmcd/gym">Source ↗</a></footer>
 </main>
@@ -171,6 +178,10 @@ noscript{display:block;padding:20px;color:var(--error)}
 <div class="two"><label class="field"><span>Target sets</span><input id="ex-sets" type="number" min="1" max="20" value="3" required></label><label class="field"><span>Target reps</span><input id="ex-reps" type="number" min="1" max="100" value="8" required></label></div>
 <label class="field"><span>Add this much when you hit the target</span><input id="ex-inc" type="text" inputmode="decimal" value="5" required></label>
 <input type="hidden" id="ex-id"><button class="primary" id="ex-save" type="submit">Save exercise ↗</button></fieldset><p class="message" id="ex-message" role="status"></p></form></dialog>
+<dialog id="w-dialog" aria-labelledby="w-title"><div class="modal-head"><h2 id="w-title">New workout.</h2><button class="close" id="w-close" type="button" aria-label="Close">×</button></div><p class="modal-copy">Name it and list the exercises in the order you do them. Start it from your Apple Watch.</p><form id="w-form"><fieldset id="w-fields" disabled>
+<label class="field"><span>Name</span><input id="w-name" type="text" placeholder="Chest day 1" maxlength="60" required autocomplete="off"></label>
+<div class="field"><span>Exercises, in order</span><ol class="w-order" id="w-order"></ol><div class="w-add"><select id="w-pick" aria-label="Exercise to add"></select><button class="quiet-button" id="w-add" type="button">Add</button></div></div>
+<input type="hidden" id="w-id"><button class="primary" id="w-save" type="submit">Save workout ↗</button></fieldset><p class="message" id="w-msg" role="status"></p></form></dialog>
 <dialog id="connection-dialog" aria-labelledby="connect-title"><div class="modal-head"><h2 id="connect-title">Sign in.</h2><button class="close" id="connect-close" type="button" aria-label="Close sign-in">×</button></div><p class="modal-copy">Your training, in your database.</p>
 <form id="connect-form"><label class="field"><span>Email</span><input id="email" type="email" autocomplete="username" required></label><label class="field" style="margin-top:16px"><span>Password</span><input id="password" type="password" autocomplete="current-password" required></label><button class="primary" id="connect-submit" type="submit" style="margin-top:16px">Sign in ↗</button><p class="message" id="connect-message" role="status"></p></form></dialog>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.116.0/dist/umd/supabase.js"></script>

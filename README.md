@@ -20,6 +20,10 @@ The progress line plots your estimated one-rep max per session (Epley: weight ×
 
 Vercel redeploys on every push to `main`.
 
+## Workouts
+
+Build a workout, like **Chest day 1**, from your exercises: give it a name and put the exercises in the order you do them. Then start it on your Apple Watch, which walks you through the exercises in that order. Edit or delete a workout any time; deleting one never touches your logged sets. If you set GYM up before workouts existed, run [workouts.sql](workouts.sql) once in the Supabase SQL editor.
+
 ## Cardio
 
 Log treadmill, stairmaster, bike or any other cardio with its length, speed and calories burned. Cardio days count toward workouts this week and your streak. If you set GYM up before cardio existed, run [cardio.sql](cardio.sql) once in the Supabase SQL editor.
@@ -46,7 +50,8 @@ Then open http://localhost:8799.
 - `gym.js` — sign-in, loading, the overload rule, the progress line, logging and editing
 - `quote-of-day.js` — a quote that changes at local midnight
 - `api/config.js` — hands the two public Supabase settings to the page
-- `setup.sql` — the `exercises` and `sets` tables, locked to each user by row-level security
+- `setup.sql` — the `exercises`, `sets`, `cardio` and `workouts` tables, locked to each user by row-level security
+- `workouts.sql` — adds workouts to a GYM set up before they existed
 
 ## Add to your iPhone home screen
 
