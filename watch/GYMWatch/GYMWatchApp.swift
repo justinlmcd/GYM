@@ -3,6 +3,7 @@ import SwiftUI
 @main
 struct GYMWatchApp: App {
     @State private var store = Store()
+    @State private var workout = WorkoutManager()
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
@@ -15,6 +16,7 @@ struct GYMWatchApp: App {
                 }
             }
             .environment(store)
+            .environment(workout)
             .task { await store.start() }
             .onChange(of: scenePhase) { _, phase in
                 // Upload anything logged offline, and refresh today's numbers, whenever the app comes back.

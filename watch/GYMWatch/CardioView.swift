@@ -5,6 +5,7 @@ import WatchKit
 // from the machine if you want, press Log cardio. Swipe a session left to delete it.
 struct CardioView: View {
     @Environment(Store.self) private var store
+    @Environment(WorkoutManager.self) private var workout
 
     private enum Field { case minutes, calories, speed }
     @FocusState private var focus: Field?
@@ -36,9 +37,17 @@ struct CardioView: View {
 
                 if let started = store.cardioStartedAt {
                     Button {
-                        minutes = max(1, (Date().timeIntervalSince(started) / 60).rounded())
-                        store.setCardioTimer(nil)
                         WKInterfaceDevice.current().play(.stop)
+                        Task {
+                            // With an Apple Workout running, its time and calories fill in the log.
+                            if workout.running && workout.isCardio, let result = await workout.end() {
+                                minutes = max(1, result.minutes.rounded())
+                                if result.calories >= 1 { calories = result.calories.rounded() }
+                            } else {
+                                minutes = max(1, (Date().timeIntervalSince(started) / 60).rounded())
+                            }
+                            store.setCardioTimer(nil)
+                        }
                     } label: {
                         HStack {
                             Text(started, style: .timer)
@@ -49,13 +58,21 @@ struct CardioView: View {
                         }
                     }
                     .tint(.red)
+                    LiveWorkoutBar()
                 } else {
                     Button {
                         store.setCardioTimer(Date())
                         WKInterfaceDevice.current().play(.start)
+                        Task { await workout.startCardio(kind) } // also an Apple Workout, when HealthKit is on
                     } label: {
                         Label("Start timer", systemImage: "stopwatch")
                     }
+                    if let summary = workout.lastSummary {
+                        Text(summary).font(.footnote).foregroundStyle(.green)
+                    }
+                }
+                if let error = workout.error {
+                    Text(error).font(.footnote).foregroundStyle(.red)
                 }
             }
 

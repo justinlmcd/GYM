@@ -12,6 +12,8 @@ struct ExerciseListView: View {
 
     var body: some View {
         List {
+            // An Apple strength workout around whatever you log here: heart rate, calories, Activity rings.
+            Section { StrengthWorkoutControl(name: "Strength training") }
             if !store.pending.isEmpty {
                 Label("\(store.pending.count) set\(store.pending.count == 1 ? "" : "s") waiting to sync", systemImage: "icloud.slash")
                     .font(.footnote)
