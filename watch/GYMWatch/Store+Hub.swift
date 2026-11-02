@@ -22,6 +22,8 @@ extension Store {
         Snapshot.save(Snapshot(day: Day.string(), logged: loggedTodayCount, connected: connectedCount, apps: hubTiles.filter { $0.status == .ok }.map {
             Snapshot.App(kind: $0.kind.rawValue, streak: $0.streak.days, kept: $0.streak.kept, logged: $0.loggedToday)
         }))
+        // And to tonight's reminder.
+        await scheduleReminders()
     }
 
     private func tile(_ kind: AppKind, _ make: () async throws -> AppTile) async -> AppTile {

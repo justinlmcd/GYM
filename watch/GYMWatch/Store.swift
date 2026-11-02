@@ -22,6 +22,8 @@ final class Store {
     // The home screen: one tile per app. GYM's is worked out live from the sets above.
     var tiles: [AppTile] = AppKind.allCases.map { AppTile(kind: $0) }
     var hubLoaded = false
+    // Notifications are turned off for YOU in the Watch app, so the evening reminder can't show.
+    var remindersBlocked = false
     var cardioDays: [String] = []
     var hub = HubData()
     // Logs for BODY, MONEY, MEAL, WRITE and READ waiting to upload.
@@ -80,6 +82,7 @@ final class Store {
         cardioDays = []
         hub = HubData()
         outbox = []
+        Task { await scheduleReminders() } // signed out: clears them
         setCardioTimer(nil)
         savePending()
     }
