@@ -1,6 +1,7 @@
 import SwiftUI
 
-// Your exercises from GYM. Ones you've trained today float to the top.
+// GYM, opened from its tile on the YOU home screen: workouts, cardio and your exercises.
+// Ones you've trained today float to the top.
 struct ExerciseListView: View {
     @Environment(Store.self) private var store
 
@@ -10,56 +11,46 @@ struct ExerciseListView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            List {
-                if !store.pending.isEmpty {
-                    Label("\(store.pending.count) set\(store.pending.count == 1 ? "" : "s") waiting to sync", systemImage: "icloud.slash")
-                        .font(.footnote)
-                        .foregroundStyle(.orange)
-                }
-                if let error = store.error {
-                    Text(error).font(.footnote).foregroundStyle(.red)
-                }
-                if store.exercises.isEmpty && !store.loading {
-                    Text("No exercises yet. Add them in the GYM app first.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
-                if !store.workouts.isEmpty {
-                    Section("Workouts") {
-                        ForEach(store.workouts) { w in
-                            NavigationLink(value: w) { WorkoutLinkRow(workout: w) }
-                        }
+        List {
+            if !store.pending.isEmpty {
+                Label("\(store.pending.count) set\(store.pending.count == 1 ? "" : "s") waiting to sync", systemImage: "icloud.slash")
+                    .font(.footnote)
+                    .foregroundStyle(.orange)
+            }
+            if let error = store.error {
+                Text(error).font(.footnote).foregroundStyle(.red)
+            }
+            if store.exercises.isEmpty && !store.loading {
+                Text("No exercises yet. Add them in the GYM app first.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+            if !store.workouts.isEmpty {
+                Section("Workouts") {
+                    ForEach(store.workouts) { w in
+                        NavigationLink(value: w) { WorkoutLinkRow(workout: w) }
                     }
-                }
-                Section {
-                    NavigationLink { CardioView() } label: { CardioLinkRow() }
-                    ForEach(ordered) { ex in
-                        NavigationLink(value: ex) { ExerciseRow(exercise: ex) }
-                    }
-                } header: {
-                    if !store.workouts.isEmpty { Text("Exercises") }
-                }
-                Section {
-                    Button("Refresh") { Task { await store.load() } }
-                    Button(store.pending.isEmpty && store.pendingCardio.isEmpty ? "Sign out" : "Sign out (unsynced logs will be lost)", role: .destructive) {
-                        Task { await store.signOut() }
-                    }
-                } footer: {
-                    if let email = store.email { Text(email) }
                 }
             }
-            .navigationTitle("GYM")
-            .navigationDestination(for: Exercise.self) { LogSetView(exercise: $0) }
-            .navigationDestination(for: Workout.self) { WorkoutView(workout: $0) }
-            .navigationDestination(for: WorkoutStep.self) { step in
-                if let ex = store.exercises.first(where: { $0.id == step.exerciseId }) {
-                    LogSetView(exercise: ex, workout: step.workout)
+            Section {
+                NavigationLink { CardioView() } label: { CardioLinkRow() }
+                ForEach(ordered) { ex in
+                    NavigationLink(value: ex) { ExerciseRow(exercise: ex) }
                 }
+            } header: {
+                if !store.workouts.isEmpty { Text("Exercises") }
             }
-            .overlay { if store.loading && store.exercises.isEmpty { ProgressView() } }
-            .refreshable { await store.load() }
         }
+        .navigationTitle("GYM")
+        .navigationDestination(for: Exercise.self) { LogSetView(exercise: $0) }
+        .navigationDestination(for: Workout.self) { WorkoutView(workout: $0) }
+        .navigationDestination(for: WorkoutStep.self) { step in
+            if let ex = store.exercises.first(where: { $0.id == step.exerciseId }) {
+                LogSetView(exercise: ex, workout: step.workout)
+            }
+        }
+        .overlay { if store.loading && store.exercises.isEmpty { ProgressView() } }
+        .refreshable { await store.refreshAll() }
     }
 }
 

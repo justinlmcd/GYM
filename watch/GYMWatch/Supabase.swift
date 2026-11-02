@@ -67,6 +67,11 @@ actor Supabase {
         }
     }
 
+    // Rows from any app's table, for the home screen. `path` is the table and its query.
+    func rows<T: Decodable & Sendable>(_ path: String) async throws -> [T] {
+        try await get(path)
+    }
+
     func workouts() async throws -> [Workout] {
         try await get("workouts?select=id,name,exercise_ids&order=name")
     }
@@ -80,6 +85,15 @@ actor Supabase {
         var req = try await request(table, method: "POST")
         req.setValue("return=minimal,resolution=ignore-duplicates", forHTTPHeaderField: "Prefer")
         req.httpBody = try JSONEncoder().encode([row])
+        _ = try await send(req)
+    }
+
+    // Uploads one row saved as JSON. Without `onConflict` a repeat of the same id is ignored;
+    // with it, the row with those column values is updated in place.
+    func post(table: String, body: Data, onConflict: String?) async throws {
+        var req = try await request(onConflict.map { "\(table)?on_conflict=\($0)" } ?? table, method: "POST")
+        req.setValue("return=minimal,resolution=\(onConflict == nil ? "ignore" : "merge")-duplicates", forHTTPHeaderField: "Prefer")
+        req.httpBody = Data("[".utf8) + body + Data("]".utf8)
         _ = try await send(req)
     }
 

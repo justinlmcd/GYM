@@ -34,7 +34,7 @@ A card near the top reads your own recent data and tells you how you are doing: 
 
 ## Apple Watch
 
-Log sets and cardio from your wrist without taking out your phone. The watch app in [watch/](watch/) writes to the same tables on the same login, so its sets show up here and in YOU automatically. Building it needs a Mac with Xcode; the steps are in [watch/README.md](watch/README.md).
+The YOU watch app in [watch/](watch/) shows all six apps on your wrist, and logs sets and cardio without taking out your phone. It writes to the same tables on the same login, so its sets show up here and in YOU automatically. Building it needs a Mac with Xcode; the steps are in [watch/README.md](watch/README.md).
 
 ## Run locally
 
