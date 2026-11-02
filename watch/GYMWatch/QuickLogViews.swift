@@ -96,6 +96,50 @@ struct MoneyLogView: View {
                 dismiss()
             }
             Text(budgetNote).font(.footnote).foregroundStyle(.secondary)
+
+            // Bills due in the next 7 days, or the next one coming.
+            Section {
+                let week = store.hub.billsThisWeek
+                if week.isEmpty {
+                    if let next = store.hub.bills.first {
+                        Text("Nothing in the next 7 days. Next: \(next.name) \(formatMoney(next.amount)) \(Day.label(next.day)).")
+                            .font(.footnote).foregroundStyle(.secondary)
+                    } else {
+                        Text("Give your bills a next charge date in MONEY to see them here.").font(.footnote).foregroundStyle(.secondary)
+                    }
+                }
+                ForEach(week) { bill in
+                    HStack {
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(bill.name).lineLimit(1)
+                            Text(Day.label(bill.day)).font(.caption2)
+                                .foregroundStyle(bill.day <= Day.adding(1, to: Day.string()) ? Color.red : Color.secondary)
+                        }
+                        Spacer()
+                        Text(formatMoney(bill.amount)).monospacedDigit()
+                    }
+                }
+            } header: {
+                let total = store.hub.billsThisWeek.reduce(0) { $0 + $1.amount }
+                Text(total > 0 ? "Due this week · \(formatMoney(total))" : "Due this week")
+            }
+
+            // Your debts: tap one to record a payment.
+            if store.hub.debtsReady && !store.hub.debts.isEmpty {
+                Section {
+                    ForEach(store.hub.debts.filter { $0.balance > 0 }) { debt in
+                        NavigationLink { DebtPayView(debt: debt) } label: {
+                            HStack {
+                                Text(debt.name).lineLimit(1)
+                                Spacer()
+                                Text(formatMoney(debt.balance)).monospacedDigit().foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                } header: {
+                    Text("Debts · \(formatMoney(store.hub.debts.reduce(0) { $0 + $1.balance })) left")
+                }
+            }
         }
         .navigationTitle("MONEY")
         .onAppear { focused = true }
@@ -106,6 +150,43 @@ struct MoneyLogView: View {
         guard let plan = store.hub.budgetByCategory[category] else { return "\(formatMoney(spent)) on \(category) this month" }
         let left = plan - spent
         return left >= 0 ? "\(formatMoney(left)) left of \(formatMoney(plan)) for \(category) this month" : "\(formatMoney(-left)) over your \(formatMoney(plan)) for \(category)"
+    }
+}
+
+// A payment on one debt: the amount on the crown, starting at its minimum, and the balance it leaves.
+struct DebtPayView: View {
+    @Environment(Store.self) private var store
+    @Environment(\.dismiss) private var dismiss
+    @FocusState private var focused: Bool
+    let debt: WatchDebt
+    @State private var amount: Double = 0
+    @State private var seeded = false
+
+    var body: some View {
+        List {
+            Dial(value: formatMoney(amount), unit: "paid", active: focused)
+                .focusable()
+                .focused($focused)
+                .digitalCrownRotation($amount, from: 0, through: max(debt.balance, 1), by: 5, sensitivity: .medium, isContinuous: false, isHapticFeedbackEnabled: true)
+                .listRowBackground(Color.clear)
+            Text("\(formatMoney(debt.balance)) → \(formatMoney(max(0, debt.balance - amount))) left")
+                .font(.footnote).monospacedDigit()
+                .listRowBackground(Color.clear)
+            LogButton(title: "Record payment", kind: .money, disabled: amount <= 0) {
+                store.recordDebtPayment(amount, debt: debt)
+                dismiss()
+            }
+            if let min = debt.minPayment {
+                Text("Minimum \(formatMoney(min)) a month").font(.footnote).foregroundStyle(.secondary)
+            }
+        }
+        .navigationTitle(debt.name)
+        .onAppear {
+            guard !seeded else { return }
+            seeded = true
+            amount = min(debt.balance, debt.minPayment ?? 50)
+            focused = true
+        }
     }
 }
 

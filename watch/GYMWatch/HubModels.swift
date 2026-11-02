@@ -128,6 +128,11 @@ nonisolated struct HubData {
     var journalToday: JournalToday?
     var books: [ReadingBook] = []
     var pagesReady = true
+    var bills: [DueBill] = []
+    var debts: [WatchDebt] = []
+    var debtsReady = false
+
+    var billsThisWeek: [DueBill] { let end = Day.adding(6, to: Day.string()); return bills.filter { $0.day <= end } }
 }
 
 // A food to fill the MEAL screen with in one tap: something you logged recently, or one of MEAL's saved foods.
@@ -138,6 +143,27 @@ nonisolated struct QuickFood: Identifiable, Hashable {
     let carbs: Int
     let fat: Int
     var id: String { "\(name)|\(calories)|\(protein)|\(carbs)|\(fat)" }
+}
+
+// MONEY's scheduled bills and subscriptions, and its debts list.
+nonisolated struct SubRow: Decodable { let name: String; let amount: Num; let cadence: String; let nextCharge: String?
+    enum CodingKeys: String, CodingKey { case name, amount, cadence; case nextCharge = "next_charge" } }
+nonisolated struct DebtRow: Decodable { let id: UUID; let name: String; let balance: Num; let minPayment: Num?
+    enum CodingKeys: String, CodingKey { case id, name, balance; case minPayment = "min_payment" } }
+
+// A bill's next charge day, worked out from its schedule as on the MONEY page.
+nonisolated struct DueBill: Identifiable, Hashable {
+    let name: String
+    let amount: Double
+    let day: String
+    var id: String { name + day }
+}
+
+nonisolated struct WatchDebt: Identifiable, Hashable {
+    let id: UUID
+    let name: String
+    var balance: Double
+    let minPayment: Double?
 }
 
 nonisolated struct JournalToday { let rating: Int; let body: String }
