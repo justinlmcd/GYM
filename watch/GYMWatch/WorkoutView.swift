@@ -11,6 +11,7 @@ struct WorkoutView: View {
         let done = list.filter { store.isDone($0) }.count
         let next = list.first { !store.isDone($0) }
         List {
+            Section { StrengthWorkoutControl(name: workout.name) }
             Section {
                 ForEach(list) { ex in
                     NavigationLink(value: WorkoutStep(workout: workout, exerciseId: ex.id)) {

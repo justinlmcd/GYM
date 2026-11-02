@@ -9,6 +9,8 @@ All six apps on your wrist. The home screen shows each one's number for today (w
 - **WRITE**: rate today 1–10 and add a note by voice; saving again updates today's entry.
 - **READ**: pages read for a book you're reading, with where they take you (needs READ's pages.sql).
 
+**Apple Workouts.** In GYM, **Start workout** (on GYM's screen, or on a saved workout like Chest day 1) runs an Apple strength workout: elapsed time, heart rate and calories show live while you log sets, and **End workout** saves it to Apple Health so it counts toward your Activity rings. In Cardio, **Start timer** also starts the matching Apple Workout (treadmill as running, bike as indoor cycling, stairs, rowing, elliptical), and **Stop** fills in the minutes and calories for you. It needs the HealthKit setup below; without it the timers work as before.
+
 **Streak saver.** Each evening at your reminder time (8pm unless you change it at the bottom of the home screen), the watch nudges you if anything isn't logged yet, naming what's missing and the biggest streak that ends at midnight. Nothing comes when everything is logged. Half an hour before, the watch refreshes in the background so logs from the web count too. The first time, the watch asks to allow notifications.
 
 Everything you log is saved on the watch first and uploads to that app's own table, so it shows on the web apps and the YOU page; with no signal it waits and uploads later. In GYM: Pick an exercise, turn the Digital Crown to set weight and reps, tap **Log set**. Each set goes straight into the same `sets` table the GYM web app uses, and cardio into the same `cardio` table, on the same login. So everything shows up in GYM's history, progress lines and coach, and in YOU's workout count, with no syncing step.
@@ -38,6 +40,13 @@ You need a Mac with **Xcode 26 or later**, your iPhone, and your Apple Watch on 
 8. **Run it.** In Xcode's run destination menu, pick your Apple Watch, then press **Run** (⌘R). The first install can take a few minutes. With a free account, on the watch go to **Settings → General → VPN & Device Management** and trust your developer profile if asked.
 9. **Sign in** on the watch with the same email and password as YOU and the web apps. You stay signed in.
 
+### Apple Workouts (HealthKit)
+
+1. Select the project → the watch app target → **Signing & Capabilities** → **+ Capability** → **HealthKit**.
+2. Same screen: **+ Capability** → **Background Modes**, and tick **Workout processing**.
+3. The **Info** tab: add two rows with **+**: **Privacy - Health Share Usage Description** and **Privacy - Health Update Usage Description**, each set to `YOU reads your heart rate and calories during workouts and saves them to Apple Health.`
+4. Run it (⌘R). The first workout asks for Health access: allow it.
+
 ### The watch-face complication
 
 A **YOU** complication for your watch face shows how many apps you've logged today, a ring, and your best 🔥 streak. It lives in its own small target:
@@ -59,6 +68,7 @@ To try it without a watch first, pick an Apple Watch simulator as the run destin
 - `GYMWatchApp.swift`: app entry; shows sign-in or the home screen, and retries unsent logs and refreshes today's numbers when the app opens
 - `HomeView.swift`: the YOU home screen, one row per app
 - `QuickLogViews.swift`: the BODY, MONEY, MEAL, WRITE and READ log screens each row opens
+- `WorkoutManager.swift`: the Apple Workout (HealthKit) behind GYM's Start workout and the cardio timer, and the live heart rate and calories bar
 - `Reminders.swift`: the evening streak-saver notification and the background refresh before it
 - `HubModels.swift` and `Store+Hub.swift`: what each app's row reads and how its number, note and streak are worked out
 - `ExerciseListView.swift`: GYM's screen: workouts, cardio and your exercises, today's ones first

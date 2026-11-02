@@ -19,6 +19,7 @@ struct LogSetView: View {
         let sets = store.todaySets(exercise)
         let suggestion = store.suggestion(exercise)
         List {
+            LiveWorkoutBar()
             Section {
                 HStack(spacing: 6) {
                     Dial(value: formatWeight(weight), unit: exercise.unit, active: focus == .weight)
