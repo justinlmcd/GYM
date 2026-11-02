@@ -18,6 +18,10 @@ extension Store {
         let read = await tile(.read) { try await self.readTile() }
         tiles = [body, money, gym, meal, write, read]
         hubLoaded = true
+        // Hand today's numbers to the watch-face complication.
+        Snapshot.save(Snapshot(day: Day.string(), logged: loggedTodayCount, connected: connectedCount, apps: hubTiles.filter { $0.status == .ok }.map {
+            Snapshot.App(kind: $0.kind.rawValue, streak: $0.streak.days, kept: $0.streak.kept, logged: $0.loggedToday)
+        }))
     }
 
     private func tile(_ kind: AppKind, _ make: () async throws -> AppTile) async -> AppTile {

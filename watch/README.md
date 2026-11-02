@@ -36,6 +36,18 @@ You need a Mac with **Xcode 26 or later**, your iPhone, and your Apple Watch on 
 8. **Run it.** In Xcode's run destination menu, pick your Apple Watch, then press **Run** (⌘R). The first install can take a few minutes. With a free account, on the watch go to **Settings → General → VPN & Device Management** and trust your developer profile if asked.
 9. **Sign in** on the watch with the same email and password as YOU and the web apps. You stay signed in.
 
+### The watch-face complication
+
+A **YOU** complication for your watch face shows how many apps you've logged today, a ring, and your best 🔥 streak. It lives in its own small target:
+
+1. **Add the target.** In Xcode: **File → New → Target → watchOS → Widget Extension**. Name it `YOUComplication`, untick **Include Configuration App Intent**, and click **Finish**. If asked to activate its scheme, choose **Don't Activate** so ⌘R keeps running the app.
+2. **Swap in the code.** In the new `YOUComplication` folder, delete every `.swift` file Xcode made (Move to Trash), then drag in `watch/YOUComplication/YOUComplication.swift` with only the `YOUComplication` target ticked.
+3. **Share `Snapshot.swift`.** Select `Snapshot.swift` in the watch app's folder, open the File inspector (⌥⌘1), and under **Target Membership** tick `YOUComplication` as well.
+4. **Let them share data (App Groups).** For the watch app target, then for the `YOUComplication` target: **Signing & Capabilities → + Capability → App Groups → +**, and enter `group.` followed by the **watch app's** Bundle Identifier (for example `group.com.yourname.GYM.watchkitapp`). Use the same group on both. Check that **Minimum Deployments** for `YOUComplication` is watchOS 10.0 or later.
+5. **Run it** (⌘R). On the watch, touch and hold the watch face → **Edit** → swipe to complications → pick a slot → **YOU**.
+
+A free Apple ID may not allow App Groups (Xcode says personal teams don't support it). If so, remove the App Groups capability from both targets: the complication still installs, shows **YOU**, and opens the app, but can't show your numbers.
+
 To try it without a watch first, pick an Apple Watch simulator as the run destination.
 
 **Updating an existing project:** after pulling new code, drag any new files from `watch/GYMWatch/` into Xcode the same way (they aren't picked up automatically), then press **Run** again.
@@ -57,3 +69,5 @@ To try it without a watch first, pick an Apple Watch simulator as the run destin
 - `Models.swift`: the `exercises`, `sets` and `cardio` rows, the cardio types, plus date helpers
 - `Config.swift`: your Supabase URL and publishable key
 - `Assets.xcassets`: the app icon and accent color
+- `Snapshot.swift`: today's numbers, saved by the app for the complication (in both targets)
+- `../YOUComplication/YOUComplication.swift`: the watch-face complication
