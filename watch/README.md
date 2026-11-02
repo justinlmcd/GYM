@@ -11,6 +11,14 @@ All six apps on your wrist. The home screen shows each one's number for today (w
 
 **Apple Workouts.** In GYM, **Start workout** (on GYM's screen, or on a saved workout like Chest day 1) runs an Apple strength workout: elapsed time, heart rate and calories show live while you log sets, and **End workout** saves it to Apple Health so it counts toward your Activity rings. In Cardio, **Start timer** also starts the matching Apple Workout (treadmill as running, bike as indoor cycling, stairs, rowing, elliptical), and **Stop** fills in the minutes and calories for you. It needs the HealthKit setup below; without it the timers work as before.
 
+**Hey Siri.** Say a phrase and Siri asks for the number; it's saved like a log made on the watch, even with the app closed:
+
+- "Log my weight in YOU" → "What did you weigh?"
+- "Log groceries in YOU" (any MONEY category), or "Log an expense in YOU" → "How much?"
+- "Log a meal in YOU" → "How many calories?" (the meal is picked from the time of day)
+- "Rate my day in YOU" → "How was your day, 1 to 10?"
+- "Log pages in YOU" → "How many pages?" (for the book you're reading)
+
 **Streak saver.** Each evening at your reminder time (8pm unless you change it at the bottom of the home screen), the watch nudges you if anything isn't logged yet, naming what's missing and the biggest streak that ends at midnight. Nothing comes when everything is logged. Half an hour before, the watch refreshes in the background so logs from the web count too. The first time, the watch asks to allow notifications.
 
 Everything you log is saved on the watch first and uploads to that app's own table, so it shows on the web apps and the YOU page; with no signal it waits and uploads later. In GYM: Pick an exercise, turn the Digital Crown to set weight and reps, tap **Log set**. Each set goes straight into the same `sets` table the GYM web app uses, and cardio into the same `cardio` table, on the same login. So everything shows up in GYM's history, progress lines and coach, and in YOU's workout count, with no syncing step.
@@ -69,6 +77,7 @@ To try it without a watch first, pick an Apple Watch simulator as the run destin
 - `HomeView.swift`: the YOU home screen, one row per app
 - `QuickLogViews.swift`: the BODY, MONEY, MEAL, WRITE and READ log screens each row opens
 - `WorkoutManager.swift`: the Apple Workout (HealthKit) behind GYM's Start workout and the cardio timer, and the live heart rate and calories bar
+- `SiriShortcuts.swift`: the "Hey Siri" phrases and what each one logs
 - `Reminders.swift`: the evening streak-saver notification and the background refresh before it
 - `HubModels.swift` and `Store+Hub.swift`: what each app's row reads and how its number, note and streak are worked out
 - `ExerciseListView.swift`: GYM's screen: workouts, cardio and your exercises, today's ones first

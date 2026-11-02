@@ -2,7 +2,7 @@ import SwiftUI
 
 @main
 struct GYMWatchApp: App {
-    @State private var store = Store()
+    @State private var store = Store.shared
     @State private var workout = WorkoutManager()
     @Environment(\.scenePhase) private var scenePhase
 

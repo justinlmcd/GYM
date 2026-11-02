@@ -166,6 +166,8 @@ nonisolated struct WatchDebt: Identifiable, Hashable {
     let minPayment: Double?
 }
 
+nonisolated struct BookTitleRow: Decodable { let id: UUID; let title: String }
+
 nonisolated struct JournalToday { let rating: Int; let body: String }
 
 nonisolated struct ReadingBook: Identifiable, Hashable {

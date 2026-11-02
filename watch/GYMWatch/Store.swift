@@ -6,6 +6,9 @@ import Observation
 @MainActor
 @Observable
 final class Store {
+    // One store for the app and its Siri shortcuts, which can run while the app is closed.
+    static let shared = Store()
+
     let api = Supabase(url: Config.supabaseURL, key: Config.publishableKey)
     private static let pendingKey = "pendingSets"
     private static let pendingCardioKey = "pendingCardio"
@@ -264,12 +267,14 @@ final class Store {
 
     // Saves a row for another app on the watch first, then uploads it with the sets and cardio.
     // A fresh id makes a retried upload harmless; WRITE's entries update in place by day instead.
-    func queue(_ table: String, _ fields: [String: Any], onConflict: String? = nil) {
+    // With `upload` off the caller uploads itself (Siri waits for its upload before answering).
+    func queue(_ table: String, _ fields: [String: Any], onConflict: String? = nil, upload: Bool = true) {
         var row = fields
         if onConflict == nil { row["id"] = UUID().uuidString.lowercased() }
         guard let data = try? JSONSerialization.data(withJSONObject: exactNumbers(row)) else { return }
         outbox.append(OutboxItem(id: UUID(), table: table, body: data, onConflict: onConflict))
         savePending()
+        guard upload else { return }
         Task {
             await flush()
             await loadHub()
