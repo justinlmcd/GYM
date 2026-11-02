@@ -109,51 +109,85 @@ struct MoneyLogView: View {
     }
 }
 
-// MEAL: calories and protein on the crown, a name if you want one, and the meal it was.
+// MEAL: calories, protein, carbs and fat on the crown (tap one to turn it), a name, and which meal.
+// A recent or saved food fills all of them in one tap; you still press Log meal to save.
 struct MealLogView: View {
     @Environment(Store.self) private var store
     @Environment(\.dismiss) private var dismiss
-    private enum Field { case kcal, protein }
+    private enum Field { case kcal, protein, carbs, fat }
     @FocusState private var focus: Field?
     @State private var kcal: Double = 300
     @State private var protein: Double = 20
+    @State private var carbs: Double = 30
+    @State private var fat: Double = 10
     @State private var name = ""
     @State private var slot = MealLogView.slotNow()
 
     var body: some View {
         List {
-            HStack(spacing: 6) {
-                Dial(value: "\(Int(kcal))", unit: "kcal", active: focus == .kcal)
-                    .focusable()
-                    .focused($focus, equals: .kcal)
-                    .digitalCrownRotation($kcal, from: 0, through: 5000, by: 10, sensitivity: .medium, isContinuous: false, isHapticFeedbackEnabled: true)
-                    .onTapGesture { focus = .kcal }
-                Dial(value: "\(Int(protein))", unit: "g protein", active: focus == .protein)
-                    .focusable()
-                    .focused($focus, equals: .protein)
-                    .digitalCrownRotation($protein, from: 0, through: 400, by: 1, sensitivity: .low, isContinuous: false, isHapticFeedbackEnabled: true)
-                    .onTapGesture { focus = .protein }
+            VStack(spacing: 6) {
+                HStack(spacing: 6) {
+                    dial("\(Int(kcal))", "kcal", .kcal, $kcal, through: 5000, by: 10, sensitivity: .medium)
+                    dial("\(Int(protein))", "g protein", .protein, $protein, through: 400, by: 1, sensitivity: .low)
+                }
+                HStack(spacing: 6) {
+                    dial("\(Int(carbs))", "g carbs", .carbs, $carbs, through: 600, by: 1, sensitivity: .low)
+                    dial("\(Int(fat))", "g fat", .fat, $fat, through: 300, by: 1, sensitivity: .low)
+                }
             }
             .listRowBackground(Color.clear)
             TextField("What (optional)", text: $name)
             Picker("Meal", selection: $slot) {
                 ForEach(["breakfast", "lunch", "dinner", "snack"], id: \.self) { Text($0.capitalized).tag($0) }
             }
-            LogButton(title: "Log meal", kind: .meal, disabled: kcal <= 0 && protein <= 0) {
+            LogButton(title: "Log meal", kind: .meal, disabled: kcal <= 0 && protein <= 0 && carbs <= 0 && fat <= 0) {
                 let what = name.trimmingCharacters(in: .whitespaces)
-                store.logMeal(kcal: Int(kcal), protein: Int(protein), name: what.isEmpty ? "Quick add" : what, slot: slot)
+                store.logMeal(kcal: Int(kcal), protein: Int(protein), carbs: Int(carbs), fat: Int(fat), name: what.isEmpty ? "Quick add" : what, slot: slot)
                 dismiss()
             }
             Text(todayNote).font(.footnote).foregroundStyle(.secondary)
+
+            if !store.hub.foods.isEmpty {
+                Section("Recent & saved") {
+                    ForEach(store.hub.foods) { food in
+                        Button {
+                            name = food.name
+                            kcal = Double(food.calories)
+                            protein = Double(food.protein)
+                            carbs = Double(food.carbs)
+                            fat = Double(food.fat)
+                            WKInterfaceDevice.current().play(.click)
+                        } label: {
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(food.name).lineLimit(2)
+                                Text("\(food.calories) kcal · P \(food.protein) · C \(food.carbs) · F \(food.fat)")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .accessibilityHint("Fills in this food. Press Log meal to save it.")
+                    }
+                }
+            }
         }
         .navigationTitle("MEAL")
         .onAppear { focus = .kcal }
     }
 
+    private func dial(_ value: String, _ unit: String, _ field: Field, _ binding: Binding<Double>, through: Double, by step: Double, sensitivity: DigitalCrownRotationalSensitivity) -> some View {
+        Dial(value: value, unit: unit, active: focus == field)
+            .focusable()
+            .focused($focus, equals: field)
+            .digitalCrownRotation(binding, from: 0, through: through, by: step, sensitivity: sensitivity, isContinuous: false, isHapticFeedbackEnabled: true)
+            .onTapGesture { focus = field }
+    }
+
     private var todayNote: String {
         let h = store.hub
-        let protein = h.proteinGoal.map { " · \(Int(h.mealProtein)) of \(Int($0)) g protein" } ?? " · \(Int(h.mealProtein)) g protein"
-        return "Today \(Int(h.mealKcal)) of \(Int(h.mealGoal)) kcal" + protein
+        func part(_ v: Double, _ goal: Double?, _ label: String) -> String {
+            goal.map { "\(Int(v))/\(Int($0)) g \(label)" } ?? "\(Int(v)) g \(label)"
+        }
+        return "Today \(Int(h.mealKcal)) of \(Int(h.mealGoal)) kcal · " + [part(h.mealProtein, h.proteinGoal, "protein"), part(h.mealCarbs, h.carbsGoal, "carbs"), part(h.mealFat, h.fatGoal, "fat")].joined(separator: " · ")
     }
 
     // Breakfast before 10:30, lunch until 3, dinner until 9, otherwise a snack.

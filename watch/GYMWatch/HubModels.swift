@@ -93,9 +93,10 @@ nonisolated struct BudgetPlan: Decodable { let allocations: [BudgetLine] }
 nonisolated struct BudgetRow: Decodable { let budget: BudgetPlan? }
 nonisolated struct DayRow: Decodable { let performedOn: String
     enum CodingKeys: String, CodingKey { case performedOn = "performed_on" } }
-nonisolated struct MealRow: Decodable { let eatenOn: String; let calories: Num; let protein: Num
-    enum CodingKeys: String, CodingKey { case calories, protein; case eatenOn = "eaten_on" } }
-nonisolated struct MealGoalRow: Decodable { let calories: Num?; let protein: Num? }
+nonisolated struct MealRow: Decodable { let eatenOn: String; let name: String; let calories: Num; let protein: Num; let carbs: Num; let fat: Num
+    enum CodingKeys: String, CodingKey { case name, calories, protein, carbs, fat; case eatenOn = "eaten_on" } }
+nonisolated struct FoodRow: Decodable { let name: String; let brand: String?; let calories: Num; let protein: Num; let carbs: Num; let fat: Num }
+nonisolated struct MealGoalRow: Decodable { let calories: Num?; let protein: Num?; let carbs: Num?; let fat: Num? }
 nonisolated struct JournalRow: Decodable { let writtenOn: String; let rating: Int; let body: String?
     enum CodingKeys: String, CodingKey { case rating, body; case writtenOn = "written_on" } }
 nonisolated struct PagesRow: Decodable { let bookId: UUID; let readOn: String; let pages: Int
@@ -117,11 +118,26 @@ nonisolated struct HubData {
     var budgetByCategory: [String: Double] = [:]
     var mealKcal = 0.0
     var mealProtein = 0.0
+    var mealCarbs = 0.0
+    var mealFat = 0.0
     var mealGoal = 2000.0
     var proteinGoal: Double?
+    var carbsGoal: Double?
+    var fatGoal: Double?
+    var foods: [QuickFood] = []
     var journalToday: JournalToday?
     var books: [ReadingBook] = []
     var pagesReady = true
+}
+
+// A food to fill the MEAL screen with in one tap: something you logged recently, or one of MEAL's saved foods.
+nonisolated struct QuickFood: Identifiable, Hashable {
+    let name: String
+    let calories: Int
+    let protein: Int
+    let carbs: Int
+    let fat: Int
+    var id: String { "\(name)|\(calories)|\(protein)|\(carbs)|\(fat)" }
 }
 
 nonisolated struct JournalToday { let rating: Int; let body: String }

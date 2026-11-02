@@ -108,8 +108,8 @@ extension Store {
     }
 
     private func mealTile() async throws -> AppTile {
-        let rows: [MealRow] = try await api.rows("meal_entries?select=eaten_on,calories,protein&eaten_on=gte.\(since)&order=eaten_on.desc")
-        let goals: [MealGoalRow]? = try? await api.rows("meal_goals?select=calories,protein&limit=1")
+        let rows: [MealRow] = try await api.rows("meal_entries?select=eaten_on,name,calories,protein,carbs,fat&eaten_on=gte.\(since)&order=eaten_on.desc")
+        let goals: [MealGoalRow]? = try? await api.rows("meal_goals?select=calories,protein,carbs,fat&limit=1")
         let goal = goals?.first?.calories?.value ?? 2000
         let today = rows.filter { $0.eatenOn == Day.string() }
         let kcal = today.reduce(0) { $0 + $1.calories.value }, protein = today.reduce(0) { $0 + $1.protein.value }
@@ -117,6 +117,23 @@ extension Store {
         hub.mealProtein = protein
         hub.mealGoal = goal
         hub.proteinGoal = goals?.first?.protein?.value
+        hub.mealCarbs = today.reduce(0) { $0 + $1.carbs.value }
+        hub.mealFat = today.reduce(0) { $0 + $1.fat.value }
+        hub.carbsGoal = goals?.first?.carbs?.value
+        hub.fatGoal = goals?.first?.fat?.value
+        // Quick picks: what you've eaten lately, newest first, then MEAL's saved foods. Each name once.
+        let saved: [FoodRow] = (try? await api.rows("foods?select=name,brand,calories,protein,carbs,fat&order=name")) ?? []
+        let pick = { (name: String, c: Num, p: Num, cb: Num, f: Num) in
+            QuickFood(name: name, calories: Int(c.value.rounded()), protein: Int(p.value.rounded()), carbs: Int(cb.value.rounded()), fat: Int(f.value.rounded()))
+        }
+        var seen = Set<String>(), foods: [QuickFood] = []
+        for r in rows where r.name != "Quick add" {
+            if seen.insert(r.name.lowercased()).inserted { foods.append(pick(r.name, r.calories, r.protein, r.carbs, r.fat)) }
+        }
+        for f in saved {
+            if seen.insert(f.name.lowercased()).inserted { foods.append(pick(f.name, f.calories, f.protein, f.carbs, f.fat)) }
+        }
+        hub.foods = Array(foods.prefix(25))
         var t = AppTile(kind: .meal)
         t.value = "\(Int(kcal.rounded()))"
         t.unit = "kcal"
@@ -193,8 +210,8 @@ extension Store {
         queue("transactions", ["occurred_on": Day.string(), "amount": amount, "category": category, "merchant": merchant, "note": ""])
     }
 
-    func logMeal(kcal: Int, protein: Int, name: String, slot: String) {
-        queue("meal_entries", ["eaten_on": Day.string(), "slot": slot, "name": name, "calories": kcal, "protein": protein, "source": "manual"])
+    func logMeal(kcal: Int, protein: Int, carbs: Int, fat: Int, name: String, slot: String) {
+        queue("meal_entries", ["eaten_on": Day.string(), "slot": slot, "name": name, "calories": kcal, "protein": protein, "carbs": carbs, "fat": fat, "source": "manual"])
     }
 
     // One entry per day: the rating replaces today's, and a new note is added under any note already there.

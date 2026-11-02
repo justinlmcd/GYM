@@ -5,7 +5,7 @@ All six apps on your wrist. The home screen shows each one's number for today (w
 - **BODY**: today's weight on the crown, starting from your last reading.
 - **MONEY**: an amount on the crown, a category and where, with what's left of that category's budget this month.
 - **GYM**: your workouts, cardio and sets, below.
-- **MEAL**: calories and protein on the crown, an optional name, and which meal, with today's total against your goal.
+- **MEAL**: calories, protein, carbs and fat on the crown, an optional name, and which meal, with today's totals against your goals. Tap a recent or saved food to fill all four in one go.
 - **WRITE**: rate today 1–10 and add a note by voice; saving again updates today's entry.
 - **READ**: pages read for a book you're reading, with where they take you (needs READ's pages.sql).
 
