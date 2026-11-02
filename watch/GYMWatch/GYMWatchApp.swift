@@ -9,7 +9,7 @@ struct GYMWatchApp: App {
         WindowGroup {
             Group {
                 if store.signedIn {
-                    ExerciseListView()
+                    HomeView()
                 } else {
                     SignInView()
                 }
@@ -17,8 +17,8 @@ struct GYMWatchApp: App {
             .environment(store)
             .task { await store.start() }
             .onChange(of: scenePhase) { _, phase in
-                // Upload anything logged offline whenever the app comes back.
-                if phase == .active { Task { await store.flush() } }
+                // Upload anything logged offline, and refresh today's numbers, whenever the app comes back.
+                if phase == .active { Task { await store.flush(); await store.loadHub() } }
             }
         }
     }

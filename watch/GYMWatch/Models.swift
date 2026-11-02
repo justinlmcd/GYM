@@ -115,6 +115,38 @@ nonisolated enum Day {
     static func daysAgo(_ n: Int) -> String {
         string(Calendar.current.date(byAdding: .day, value: -n, to: Date()) ?? Date())
     }
+
+    // The day before a "yyyy-MM-dd" day.
+    static func before(_ day: String) -> String {
+        guard let d = formatter.date(from: day) else { return "" }
+        return string(Calendar.current.date(byAdding: .day, value: -1, to: d) ?? d)
+    }
+
+    // The local day of a timestamp like "2026-11-02T14:05:00.123+00:00" (BODY's readings).
+    static func string(fromTimestamp ts: String) -> String {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let d = f.date(from: ts) { return string(d) }
+        f.formatOptions = [.withInternetDateTime]
+        if let d = f.date(from: ts) { return string(d) }
+        return String(ts.prefix(10))
+    }
+
+    // The Monday that starts this week, as on GYM and YOU.
+    static func weekStart() -> String {
+        var cal = Calendar(identifier: .gregorian)
+        cal.firstWeekday = 2
+        let start = cal.dateInterval(of: .weekOfYear, for: Date())?.start ?? Date()
+        return string(start)
+    }
+
+    // "today", "yesterday" or "Nov 1".
+    static func label(_ day: String) -> String {
+        if day == string() { return "today" }
+        if day == daysAgo(1) { return "yesterday" }
+        guard let d = formatter.date(from: day) else { return day }
+        return d.formatted(.dateTime.month(.abbreviated).day())
+    }
 }
 
 nonisolated func formatWeight(_ w: Double) -> String {

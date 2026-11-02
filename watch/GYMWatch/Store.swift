@@ -6,7 +6,7 @@ import Observation
 @MainActor
 @Observable
 final class Store {
-    private let api = Supabase(url: Config.supabaseURL, key: Config.publishableKey)
+    let api = Supabase(url: Config.supabaseURL, key: Config.publishableKey)
     private static let pendingKey = "pendingSets"
     private static let pendingCardioKey = "pendingCardio"
     private static let cardioStartKey = "cardioStartedAt"
@@ -18,6 +18,10 @@ final class Store {
     var pending: [LoggedSet] = []
     var cardio: [CardioSession] = []
     var workouts: [Workout] = []
+    // The home screen: one tile per app. GYM's is worked out live from the sets above.
+    var tiles: [AppTile] = AppKind.allCases.map { AppTile(kind: $0) }
+    var hubLoaded = false
+    var cardioDays: [String] = []
     var pendingCardio: [CardioSession] = []
     var cardioMissing = false
     private(set) var cardioStartedAt: Date?
@@ -36,7 +40,12 @@ final class Store {
     func start() async {
         email = await api.email
         signedIn = email != nil
-        if signedIn { await load() }
+        if signedIn { await refreshAll() }
+    }
+
+    func refreshAll() async {
+        await load()
+        await loadHub()
     }
 
     func signIn(email: String, password: String) async {
@@ -45,7 +54,7 @@ final class Store {
             try await api.signIn(email: email, password: password)
             self.email = email
             signedIn = true
-            await load()
+            await refreshAll()
         } catch {
             self.error = error.localizedDescription
         }
@@ -61,6 +70,9 @@ final class Store {
         cardio = []
         pendingCardio = []
         workouts = []
+        tiles = AppKind.allCases.map { AppTile(kind: $0) }
+        hubLoaded = false
+        cardioDays = []
         setCardioTimer(nil)
         savePending()
     }
@@ -100,7 +112,7 @@ final class Store {
 
     // MARK: - Reading
 
-    private var allSets: [LoggedSet] {
+    var allSets: [LoggedSet] {
         let pendingIds = Set(pending.map(\.id))
         return history.filter { !pendingIds.contains($0.id) } + pending
     }
@@ -236,6 +248,8 @@ final class Store {
         }
         return true
     }
+
+    func noteSignedOut() { handle(APIError.signedOut) }
 
     private func handle(_ error: Error) {
         if case APIError.signedOut = error {

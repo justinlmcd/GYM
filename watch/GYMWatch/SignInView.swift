@@ -1,6 +1,6 @@
 import SwiftUI
 
-// One-time sign-in with the same email and password as the GYM web app.
+// One-time sign-in with the same email and password as YOU and the six web apps.
 struct SignInView: View {
     @Environment(Store.self) private var store
     @State private var email = ""
@@ -10,9 +10,9 @@ struct SignInView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 8) {
-                Text("GYM")
+                Text("YOU")
                     .font(.system(.title2, design: .rounded, weight: .heavy))
-                Text("Sign in with your GYM login.")
+                Text("Sign in with the login you use for YOU and your apps.")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                 TextField("Email", text: $email)

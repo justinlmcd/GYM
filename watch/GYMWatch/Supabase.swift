@@ -67,6 +67,11 @@ actor Supabase {
         }
     }
 
+    // Rows from any app's table, for the home screen. `path` is the table and its query.
+    func rows<T: Decodable & Sendable>(_ path: String) async throws -> [T] {
+        try await get(path)
+    }
+
     func workouts() async throws -> [Workout] {
         try await get("workouts?select=id,name,exercise_ids&order=name")
     }
