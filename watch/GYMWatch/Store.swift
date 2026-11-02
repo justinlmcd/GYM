@@ -10,6 +10,7 @@ final class Store {
     private static let pendingKey = "pendingSets"
     private static let pendingCardioKey = "pendingCardio"
     private static let cardioStartKey = "cardioStartedAt"
+    private static let outboxKey = "outbox"
 
     var signedIn = false
     var email: String?
@@ -22,6 +23,9 @@ final class Store {
     var tiles: [AppTile] = AppKind.allCases.map { AppTile(kind: $0) }
     var hubLoaded = false
     var cardioDays: [String] = []
+    var hub = HubData()
+    // Logs for BODY, MONEY, MEAL, WRITE and READ waiting to upload.
+    var outbox: [OutboxItem] = []
     var pendingCardio: [CardioSession] = []
     var cardioMissing = false
     private(set) var cardioStartedAt: Date?
@@ -33,6 +37,7 @@ final class Store {
     init() {
         pending = Self.restore(Self.pendingKey)
         pendingCardio = Self.restore(Self.pendingCardioKey)
+        outbox = Self.restore(Self.outboxKey)
         let started = UserDefaults.standard.double(forKey: Self.cardioStartKey)
         if started > 0 { cardioStartedAt = Date(timeIntervalSince1970: started) }
     }
@@ -73,6 +78,8 @@ final class Store {
         tiles = AppKind.allCases.map { AppTile(kind: $0) }
         hubLoaded = false
         cardioDays = []
+        hub = HubData()
+        outbox = []
         setCardioTimer(nil)
         savePending()
     }
@@ -217,7 +224,8 @@ final class Store {
         flushing = true
         defer { flushing = false }
         guard await upload(\.pending, table: "sets", onSaved: { self.history.append($0) }) else { return }
-        _ = await upload(\.pendingCardio, table: "cardio", onSaved: { self.cardio.append($0) })
+        guard await upload(\.pendingCardio, table: "cardio", onSaved: { self.cardio.append($0) }) else { return }
+        await flushOutbox()
     }
 
     // Uploads one queue in order. Returns false when the connection dropped or the
@@ -251,6 +259,38 @@ final class Store {
 
     func noteSignedOut() { handle(APIError.signedOut) }
 
+    // Saves a row for another app on the watch first, then uploads it with the sets and cardio.
+    // A fresh id makes a retried upload harmless; WRITE's entries update in place by day instead.
+    func queue(_ table: String, _ fields: [String: Any], onConflict: String? = nil) {
+        var row = fields
+        if onConflict == nil { row["id"] = UUID().uuidString.lowercased() }
+        guard let data = try? JSONSerialization.data(withJSONObject: row) else { return }
+        outbox.append(OutboxItem(id: UUID(), table: table, body: data, onConflict: onConflict))
+        savePending()
+        Task {
+            await flush()
+            await loadHub()
+        }
+    }
+
+    private func flushOutbox() async {
+        var tried = Set<UUID>()
+        while let item = outbox.first(where: { !tried.contains($0.id) }) {
+            tried.insert(item.id)
+            do {
+                try await api.post(table: item.table, body: item.body, onConflict: item.onConflict)
+                outbox.removeAll { $0.id == item.id }
+            } catch let error where APIError.isTransient(error) {
+                return // No connection: keep the rest queued.
+            } catch {
+                handle(error)
+                if !signedIn { return }
+                outbox.removeAll { $0.id == item.id } // Rejected by the server (e.g. that app isn't set up).
+            }
+            savePending()
+        }
+    }
+
     private func handle(_ error: Error) {
         if case APIError.signedOut = error {
             signedIn = false
@@ -269,6 +309,9 @@ final class Store {
         }
         if let data = try? JSONEncoder().encode(pendingCardio) {
             UserDefaults.standard.set(data, forKey: Self.pendingCardioKey)
+        }
+        if let data = try? JSONEncoder().encode(outbox) {
+            UserDefaults.standard.set(data, forKey: Self.outboxKey)
         }
     }
 

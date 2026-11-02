@@ -86,23 +86,63 @@ nonisolated struct Num: Decodable, Hashable {
 // The rows each app writes, only the columns the home screen reads.
 nonisolated struct WeightRow: Decodable { let value: Num; let unit: String; let occurredAt: String
     enum CodingKeys: String, CodingKey { case value, unit; case occurredAt = "occurred_at" } }
-nonisolated struct SpendRow: Decodable { let occurredOn: String; let amount: Num
-    enum CodingKeys: String, CodingKey { case amount; case occurredOn = "occurred_on" } }
-nonisolated struct BudgetLine: Decodable { let kind: String; let amount: Num }
+nonisolated struct SpendRow: Decodable { let occurredOn: String; let amount: Num; let category: String
+    enum CodingKeys: String, CodingKey { case amount, category; case occurredOn = "occurred_on" } }
+nonisolated struct BudgetLine: Decodable { let category: String?; let kind: String; let amount: Num }
 nonisolated struct BudgetPlan: Decodable { let allocations: [BudgetLine] }
 nonisolated struct BudgetRow: Decodable { let budget: BudgetPlan? }
 nonisolated struct DayRow: Decodable { let performedOn: String
     enum CodingKeys: String, CodingKey { case performedOn = "performed_on" } }
 nonisolated struct MealRow: Decodable { let eatenOn: String; let calories: Num; let protein: Num
     enum CodingKeys: String, CodingKey { case calories, protein; case eatenOn = "eaten_on" } }
-nonisolated struct MealGoalRow: Decodable { let calories: Num? }
-nonisolated struct JournalRow: Decodable { let writtenOn: String; let rating: Int
-    enum CodingKeys: String, CodingKey { case rating; case writtenOn = "written_on" } }
-nonisolated struct PagesRow: Decodable { let readOn: String; let pages: Int
-    enum CodingKeys: String, CodingKey { case pages; case readOn = "read_on" } }
-nonisolated struct BookRow: Decodable { let title: String; let status: String; let finishedOn: String?
-    enum CodingKeys: String, CodingKey { case title, status; case finishedOn = "finished_on" } }
+nonisolated struct MealGoalRow: Decodable { let calories: Num?; let protein: Num? }
+nonisolated struct JournalRow: Decodable { let writtenOn: String; let rating: Int; let body: String?
+    enum CodingKeys: String, CodingKey { case rating, body; case writtenOn = "written_on" } }
+nonisolated struct PagesRow: Decodable { let bookId: UUID; let readOn: String; let pages: Int
+    enum CodingKeys: String, CodingKey { case pages; case bookId = "book_id"; case readOn = "read_on" } }
+nonisolated struct BookRow: Decodable { let id: UUID; let title: String; let status: String; let finishedOn: String?; let totalPages: Int?
+    enum CodingKeys: String, CodingKey { case id, title, status; case finishedOn = "finished_on"; case totalPages = "total_pages" } }
+nonisolated struct BookRowNoPages: Decodable { let id: UUID; let title: String; let status: String; let finishedOn: String?
+    enum CodingKeys: String, CodingKey { case id, title, status; case finishedOn = "finished_on" } }
 
 nonisolated func formatMoney(_ v: Double) -> String {
     v.formatted(.currency(code: Locale.current.currency?.identifier ?? "USD").precision(.fractionLength(0)))
+}
+
+// What the quick-log screens need, kept from the last time the home screen loaded.
+nonisolated struct HubData {
+    var lastWeight: Double?
+    var weightUnit = "lbs"
+    var spentByCategory: [String: Double] = [:]
+    var budgetByCategory: [String: Double] = [:]
+    var mealKcal = 0.0
+    var mealProtein = 0.0
+    var mealGoal = 2000.0
+    var proteinGoal: Double?
+    var journalToday: JournalToday?
+    var books: [ReadingBook] = []
+    var pagesReady = true
+}
+
+nonisolated struct JournalToday { let rating: Int; let body: String }
+
+nonisolated struct ReadingBook: Identifiable, Hashable {
+    let id: UUID
+    let title: String
+    let totalPages: Int?
+    let pagesRead: Int
+}
+
+// A log saved on the watch and waiting to upload to one of the apps' tables.
+// `body` is the row as JSON; `onConflict` names the columns to update in place (WRITE's one entry per day).
+nonisolated struct OutboxItem: Codable, Identifiable, Hashable {
+    let id: UUID
+    let table: String
+    let body: Data
+    let onConflict: String?
+}
+
+// MONEY's categories, as on the MONEY page.
+nonisolated enum MoneyCategory {
+    static let all = ["Food & drink", "Groceries", "Transport", "Shopping", "Subscriptions", "Bills & utilities", "Housing", "Health", "Entertainment", "Travel", "Other"]
 }

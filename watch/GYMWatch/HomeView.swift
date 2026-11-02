@@ -25,7 +25,7 @@ struct HomeView: View {
                     .accessibilityElement(children: .combine)
                 }
 
-                if !store.pending.isEmpty || !store.pendingCardio.isEmpty {
+                if !store.pending.isEmpty || !store.pendingCardio.isEmpty || !store.outbox.isEmpty {
                     Label("Logs waiting to sync", systemImage: "icloud.slash")
                         .font(.footnote)
                         .foregroundStyle(.orange)
@@ -34,17 +34,18 @@ struct HomeView: View {
                     Text(error).font(.footnote).foregroundStyle(.red)
                 }
 
+                // Tap an app to log to it; one that isn't set up just shows why.
                 ForEach(store.hubTiles) { tile in
-                    if tile.kind == .gym {
-                        NavigationLink { ExerciseListView() } label: { TileRow(tile: tile) }
-                    } else {
+                    if tile.status == .notSetUp {
                         TileRow(tile: tile)
+                    } else {
+                        NavigationLink { quickLog(for: tile.kind) } label: { TileRow(tile: tile) }
                     }
                 }
 
                 Section {
                     Button("Refresh") { Task { await store.refreshAll() } }
-                    Button(store.pending.isEmpty && store.pendingCardio.isEmpty ? "Sign out" : "Sign out (unsynced logs will be lost)", role: .destructive) {
+                    Button(store.pending.isEmpty && store.pendingCardio.isEmpty && store.outbox.isEmpty ? "Sign out" : "Sign out (unsynced logs will be lost)", role: .destructive) {
                         Task { await store.signOut() }
                     }
                 } footer: {

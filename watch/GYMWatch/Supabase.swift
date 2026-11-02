@@ -88,6 +88,15 @@ actor Supabase {
         _ = try await send(req)
     }
 
+    // Uploads one row saved as JSON. Without `onConflict` a repeat of the same id is ignored;
+    // with it, the row with those column values is updated in place.
+    func post(table: String, body: Data, onConflict: String?) async throws {
+        var req = try await request(onConflict.map { "\(table)?on_conflict=\($0)" } ?? table, method: "POST")
+        req.setValue("return=minimal,resolution=\(onConflict == nil ? "ignore" : "merge")-duplicates", forHTTPHeaderField: "Prefer")
+        req.httpBody = Data("[".utf8) + body + Data("]".utf8)
+        _ = try await send(req)
+    }
+
     func delete(from table: String, id: UUID) async throws {
         let req = try await request("\(table)?id=eq.\(id.uuidString.lowercased())", method: "DELETE")
         _ = try await send(req)

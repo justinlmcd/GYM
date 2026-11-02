@@ -49,6 +49,8 @@ extension Store {
             t.unit = latest.unit
             t.note = Day.label(days[0])
             t.loggedToday = days[0] == Day.string()
+            hub.lastWeight = latest.value.value
+            hub.weightUnit = latest.unit
         } else {
             t.note = "no readings yet"
         }
@@ -58,12 +60,15 @@ extension Store {
 
     // Money left this month against your budget when you have one, otherwise what you've spent.
     private func moneyTile() async throws -> AppTile {
-        let rows: [SpendRow] = try await api.rows("transactions?select=occurred_on,amount&occurred_on=gte.\(since)&order=occurred_on.desc")
+        let rows: [SpendRow] = try await api.rows("transactions?select=occurred_on,amount,category&occurred_on=gte.\(since)&order=occurred_on.desc")
         let today = Day.string(), month = String(today.prefix(8)) + "01"
         let spent = rows.filter { $0.occurredOn >= month && $0.occurredOn <= today }.reduce(0) { $0 + $1.amount.value }
         let spentToday = rows.filter { $0.occurredOn == today }.reduce(0) { $0 + $1.amount.value }
         let budgets: [BudgetRow]? = try? await api.rows("money_profile?select=budget")
-        let plan = budgets?.first?.budget?.allocations.filter { $0.kind == "need" || $0.kind == "want" }.reduce(0) { $0 + $1.amount.value } ?? 0
+        let spendLines = budgets?.first?.budget?.allocations.filter { $0.kind == "need" || $0.kind == "want" } ?? []
+        let plan = spendLines.reduce(0) { $0 + $1.amount.value }
+        hub.budgetByCategory = Dictionary(spendLines.compactMap { l in l.category.map { ($0, l.amount.value) } }, uniquingKeysWith: +)
+        hub.spentByCategory = Dictionary(rows.filter { $0.occurredOn >= month && $0.occurredOn <= today }.map { ($0.category, $0.amount.value) }, uniquingKeysWith: +)
         let todayNote = spentToday > 0 ? "\(formatMoney(spentToday)) today" : "nothing today"
         var t = AppTile(kind: .money)
         if plan > 0 {
@@ -100,10 +105,14 @@ extension Store {
 
     private func mealTile() async throws -> AppTile {
         let rows: [MealRow] = try await api.rows("meal_entries?select=eaten_on,calories,protein&eaten_on=gte.\(since)&order=eaten_on.desc")
-        let goals: [MealGoalRow]? = try? await api.rows("meal_goals?select=calories&limit=1")
+        let goals: [MealGoalRow]? = try? await api.rows("meal_goals?select=calories,protein&limit=1")
         let goal = goals?.first?.calories?.value ?? 2000
         let today = rows.filter { $0.eatenOn == Day.string() }
         let kcal = today.reduce(0) { $0 + $1.calories.value }, protein = today.reduce(0) { $0 + $1.protein.value }
+        hub.mealKcal = kcal
+        hub.mealProtein = protein
+        hub.mealGoal = goal
+        hub.proteinGoal = goals?.first?.protein?.value
         var t = AppTile(kind: .meal)
         t.value = "\(Int(kcal.rounded()))"
         t.unit = "kcal"
@@ -118,8 +127,9 @@ extension Store {
     }
 
     private func writeTile() async throws -> AppTile {
-        let rows: [JournalRow] = try await api.rows("journal_entries?select=written_on,rating&written_on=gte.\(since)&order=written_on.desc")
+        let rows: [JournalRow] = try await api.rows("journal_entries?select=written_on,rating,body&written_on=gte.\(since)&order=written_on.desc")
         var t = AppTile(kind: .write)
+        hub.journalToday = rows.first { $0.writtenOn == Day.string() }.map { JournalToday(rating: $0.rating, body: $0.body ?? "") }
         if let latest = rows.first {
             t.value = "\(latest.rating)"
             t.unit = "/10"
@@ -132,19 +142,28 @@ extension Store {
         return t
     }
 
-    // Pages read today when READ's page log exists, otherwise books finished this year.
+    // Pages read today when READ's page log exists (pages.sql), otherwise books finished this year.
     private func readTile() async throws -> AppTile {
-        let books: [BookRow] = try await api.rows("books?select=title,status,finished_on")
-        let logs: [PagesRow]? = try? await api.rows("reading_log?select=read_on,pages&read_on=gte.\(since)")
-        let reading = books.filter { $0.status == "reading" }.map(\.title)
+        var books: [BookRow]
+        do {
+            books = try await api.rows("books?select=id,title,status,finished_on,total_pages")
+        } catch APIError.server(_, let message) where message.contains("total_pages") {
+            let older: [BookRowNoPages] = try await api.rows("books?select=id,title,status,finished_on")
+            books = older.map { BookRow(id: $0.id, title: $0.title, status: $0.status, finishedOn: $0.finishedOn, totalPages: nil) }
+        }
+        let logs: [PagesRow]? = try? await api.rows("reading_log?select=book_id,read_on,pages")
+        hub.pagesReady = logs != nil
+        hub.books = books.filter { $0.status == "reading" }.map { b in
+            ReadingBook(id: b.id, title: b.title, totalPages: b.totalPages, pagesRead: logs?.filter { $0.bookId == b.id }.reduce(0) { $0 + $1.pages } ?? 0)
+        }
         var t = AppTile(kind: .read)
         if let logs {
             let pages = logs.filter { $0.readOn == Day.string() }.reduce(0) { $0 + $1.pages }
             t.value = "\(pages)"
             t.unit = pages == 1 ? "page" : "pages"
-            t.note = reading.first.map { "today · \($0)" } ?? "today"
+            t.note = hub.books.first.map { "today · \($0.title)" } ?? "today"
             t.loggedToday = pages > 0
-            t.streak = Streak(days: logs.map(\.readOn), since: since)
+            t.streak = Streak(days: logs.map(\.readOn).filter { $0 >= since }, since: since)
         } else {
             let year = String(Day.string().prefix(4))
             let finished = books.filter { $0.status == "finished" && ($0.finishedOn ?? "").hasPrefix(year) }.count
@@ -153,5 +172,39 @@ extension Store {
             t.note = "finished in \(year)"
         }
         return t
+    }
+}
+
+// The quick-log screens' saves. Each goes into the outbox, then uploads to that app's own table.
+extension Store {
+    func logWeight(_ value: Double, unit: String) {
+        queue("events", [
+            "occurred_at": ISO8601DateFormatter().string(from: Date()), "metric": "weight",
+            "value": (value * 10).rounded() / 10, "unit": unit, "event_type": "measurement",
+            "source": "watch", "source_id": UUID().uuidString.lowercased(), "context": ["area": "body"],
+        ])
+    }
+
+    func logExpense(_ amount: Double, category: String, merchant: String) {
+        queue("transactions", ["occurred_on": Day.string(), "amount": amount, "category": category, "merchant": merchant, "note": ""])
+    }
+
+    func logMeal(kcal: Int, protein: Int, name: String, slot: String) {
+        queue("meal_entries", ["eaten_on": Day.string(), "slot": slot, "name": name, "calories": kcal, "protein": protein, "source": "manual"])
+    }
+
+    // One entry per day: the rating replaces today's, and a new note is added under any note already there.
+    func saveDay(rating: Int, note: String) {
+        var fields: [String: Any] = ["written_on": Day.string(), "rating": rating, "updated_at": ISO8601DateFormatter().string(from: Date())]
+        let text = note.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !text.isEmpty {
+            let before = hub.journalToday?.body ?? ""
+            fields["body"] = before.isEmpty ? text : before + "\n\n" + text
+        }
+        queue("journal_entries", fields, onConflict: "user_id,written_on")
+    }
+
+    func logPages(_ pages: Int, book: UUID) {
+        queue("reading_log", ["book_id": book.uuidString.lowercased(), "read_on": Day.string(), "pages": pages])
     }
 }
