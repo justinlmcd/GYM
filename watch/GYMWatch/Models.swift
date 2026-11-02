@@ -173,6 +173,14 @@ nonisolated enum Day {
     }
 }
 
+// The Digital Crown adds up its steps in floating point, so 15 can arrive as 15.0000004.
+// Values are rounded to their step before they're shown or saved.
+nonisolated func snap(_ v: Double, to step: Double) -> Double {
+    guard step > 0 else { return v }
+    return ((v / step).rounded() * step * 100).rounded() / 100
+}
+
 nonisolated func formatWeight(_ w: Double) -> String {
-    w.rounded() == w ? String(Int(w)) : String(format: "%g", w)
+    let v = (w * 100).rounded() / 100
+    return v.rounded() == v ? String(Int(v)) : String(format: "%g", v)
 }

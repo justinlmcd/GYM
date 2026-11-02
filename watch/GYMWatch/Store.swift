@@ -267,12 +267,23 @@ final class Store {
     func queue(_ table: String, _ fields: [String: Any], onConflict: String? = nil) {
         var row = fields
         if onConflict == nil { row["id"] = UUID().uuidString.lowercased() }
-        guard let data = try? JSONSerialization.data(withJSONObject: row) else { return }
+        guard let data = try? JSONSerialization.data(withJSONObject: exactNumbers(row)) else { return }
         outbox.append(OutboxItem(id: UUID(), table: table, body: data, onConflict: onConflict))
         savePending()
         Task {
             await flush()
             await loadHub()
+        }
+    }
+
+    // JSONSerialization writes some decimals with 17 digits (158.4 as 158.40000000000001), and the
+    // database keeps every digit it's sent. Decimals go out as exact decimal numbers instead.
+    private func exactNumbers(_ value: Any) -> Any {
+        switch value {
+        case let d as Double: return NSDecimalNumber(string: String(format: "%.4f", d))
+        case let dict as [String: Any]: return dict.mapValues { exactNumbers($0) }
+        case let list as [Any]: return list.map { exactNumbers($0) }
+        default: return value
         }
     }
 
