@@ -78,13 +78,13 @@ struct CardioView: View {
 
             Section {
                 HStack(spacing: 6) {
-                    Dial(value: String(Int(minutes)), unit: "min", active: focus == .minutes)
+                    Dial(value: String(Int(minutes.rounded())), unit: "min", active: focus == .minutes)
                         .focusable()
                         .focused($focus, equals: .minutes)
                         .digitalCrownRotation($minutes, from: 1, through: 600, by: 1,
                                               sensitivity: .low, isContinuous: false, isHapticFeedbackEnabled: true)
                         .onTapGesture { focus = .minutes }
-                    Dial(value: calories > 0 ? String(Int(calories)) : "–", unit: "kcal", active: focus == .calories)
+                    Dial(value: calories > 0 ? String(Int(calories.rounded())) : "–", unit: "kcal", active: focus == .calories)
                         .focusable()
                         .focused($focus, equals: .calories)
                         .digitalCrownRotation($calories, from: 0, through: 3000, by: 5,
@@ -94,7 +94,7 @@ struct CardioView: View {
                 .listRowBackground(Color.clear)
 
                 HStack(spacing: 6) {
-                    Dial(value: speed > 0 ? (speedStep < 1 ? String(format: "%.1f", speed) : String(Int(speed))) : "–",
+                    Dial(value: speed > 0 ? (speedStep < 1 ? String(format: "%.1f", speed) : String(Int(speed.rounded()))) : "–",
                          unit: "speed", active: focus == .speed)
                         .focusable()
                         .focused($focus, equals: .speed)
@@ -117,8 +117,8 @@ struct CardioView: View {
                 .listRowBackground(Color.clear)
 
                 Button {
-                    store.logCardio(kind: kind, minutes: Int(minutes), speed: speed,
-                                    speedUnit: unit, calories: Int(calories))
+                    store.logCardio(kind: kind, minutes: Int(minutes.rounded()), speed: snap(speed, to: speedStep),
+                                    speedUnit: unit, calories: Int(calories.rounded()))
                     WKInterfaceDevice.current().play(.success)
                 } label: {
                     Text("Log cardio")

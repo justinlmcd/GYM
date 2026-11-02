@@ -28,7 +28,7 @@ struct LogSetView: View {
                         .digitalCrownRotation($weight, from: 0, through: 2000, by: exercise.step,
                                               sensitivity: .low, isContinuous: false, isHapticFeedbackEnabled: true)
                         .onTapGesture { focus = .weight }
-                    Dial(value: String(Int(reps)), unit: "reps", active: focus == .reps)
+                    Dial(value: String(Int(reps.rounded())), unit: "reps", active: focus == .reps)
                         .focusable()
                         .focused($focus, equals: .reps)
                         .digitalCrownRotation($reps, from: 0, through: 100, by: 1,
@@ -38,7 +38,7 @@ struct LogSetView: View {
                 .listRowBackground(Color.clear)
 
                 Button {
-                    store.log(exercise, weight: weight, reps: Int(reps))
+                    store.log(exercise, weight: snap(weight, to: exercise.step), reps: Int(reps.rounded()))
                     WKInterfaceDevice.current().play(.success)
                 } label: {
                     Text("Log set \(sets.count + 1)")

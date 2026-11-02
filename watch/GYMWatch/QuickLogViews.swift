@@ -52,7 +52,7 @@ struct BodyLogView: View {
                 .digitalCrownRotation($weight, from: 0, through: 1000, by: 0.1, sensitivity: .low, isContinuous: false, isHapticFeedbackEnabled: true)
                 .listRowBackground(Color.clear)
             LogButton(title: "Log weight", kind: .body, disabled: weight <= 0) {
-                store.logWeight(weight, unit: unit)
+                store.logWeight(snap(weight, to: 0.1), unit: unit)
                 dismiss()
             }
             if let last = store.hub.lastWeight {
@@ -92,7 +92,7 @@ struct MoneyLogView: View {
             }
             TextField("Where (optional)", text: $merchant)
             LogButton(title: amount > 0 ? "Log \(formatMoney(amount))" : "Log expense", kind: .money, disabled: amount <= 0) {
-                store.logExpense(amount, category: category, merchant: merchant.trimmingCharacters(in: .whitespaces))
+                store.logExpense(amount.rounded(), category: category, merchant: merchant.trimmingCharacters(in: .whitespaces))
                 dismiss()
             }
             Text(budgetNote).font(.footnote).foregroundStyle(.secondary)
@@ -173,7 +173,7 @@ struct DebtPayView: View {
                 .font(.footnote).monospacedDigit()
                 .listRowBackground(Color.clear)
             LogButton(title: "Record payment", kind: .money, disabled: amount <= 0) {
-                store.recordDebtPayment(amount, debt: debt)
+                store.recordDebtPayment(snap(amount, to: 0.01), debt: debt)
                 dismiss()
             }
             if let min = debt.minPayment {
@@ -208,12 +208,12 @@ struct MealLogView: View {
         List {
             VStack(spacing: 6) {
                 HStack(spacing: 6) {
-                    dial("\(Int(kcal))", "kcal", .kcal, $kcal, through: 5000, by: 10, sensitivity: .medium)
-                    dial("\(Int(protein))", "g protein", .protein, $protein, through: 400, by: 1, sensitivity: .low)
+                    dial("\(Int(kcal.rounded()))", "kcal", .kcal, $kcal, through: 5000, by: 10, sensitivity: .medium)
+                    dial("\(Int(protein.rounded()))", "g protein", .protein, $protein, through: 400, by: 1, sensitivity: .low)
                 }
                 HStack(spacing: 6) {
-                    dial("\(Int(carbs))", "g carbs", .carbs, $carbs, through: 600, by: 1, sensitivity: .low)
-                    dial("\(Int(fat))", "g fat", .fat, $fat, through: 300, by: 1, sensitivity: .low)
+                    dial("\(Int(carbs.rounded()))", "g carbs", .carbs, $carbs, through: 600, by: 1, sensitivity: .low)
+                    dial("\(Int(fat.rounded()))", "g fat", .fat, $fat, through: 300, by: 1, sensitivity: .low)
                 }
             }
             .listRowBackground(Color.clear)
@@ -223,7 +223,7 @@ struct MealLogView: View {
             }
             LogButton(title: "Log meal", kind: .meal, disabled: kcal <= 0 && protein <= 0 && carbs <= 0 && fat <= 0) {
                 let what = name.trimmingCharacters(in: .whitespaces)
-                store.logMeal(kcal: Int(kcal), protein: Int(protein), carbs: Int(carbs), fat: Int(fat), name: what.isEmpty ? "Quick add" : what, slot: slot)
+                store.logMeal(kcal: Int(kcal.rounded()), protein: Int(protein.rounded()), carbs: Int(carbs.rounded()), fat: Int(fat.rounded()), name: what.isEmpty ? "Quick add" : what, slot: slot)
                 dismiss()
             }
             Text(todayNote).font(.footnote).foregroundStyle(.secondary)
@@ -296,14 +296,14 @@ struct WriteLogView: View {
     var body: some View {
         let today = store.hub.journalToday
         List {
-            Dial(value: "\(Int(rating))", unit: Self.words[Int(rating)] ?? "", active: focused)
+            Dial(value: "\(Int(rating.rounded()))", unit: Self.words[Int(rating.rounded())] ?? "", active: focused)
                 .focusable()
                 .focused($focused)
                 .digitalCrownRotation($rating, from: 1, through: 10, by: 1, sensitivity: .low, isContinuous: false, isHapticFeedbackEnabled: true)
                 .listRowBackground(Color.clear)
             TextField(today?.body.isEmpty == false ? "Add to today's note" : "How did today go? (optional)", text: $note)
             LogButton(title: today == nil ? "Save today" : "Update today", kind: .write) {
-                store.saveDay(rating: Int(rating), note: note)
+                store.saveDay(rating: Int(rating.rounded()), note: note)
                 dismiss()
             }
             if let today, !today.body.isEmpty {
@@ -342,13 +342,13 @@ struct ReadLogView: View {
                 } else {
                     Text(book.title).font(.headline)
                 }
-                Dial(value: "\(Int(pages))", unit: "pages", active: focused)
+                Dial(value: "\(Int(pages.rounded()))", unit: "pages", active: focused)
                     .focusable()
                     .focused($focused)
                     .digitalCrownRotation($pages, from: 1, through: 500, by: 1, sensitivity: .medium, isContinuous: false, isHapticFeedbackEnabled: true)
                     .listRowBackground(Color.clear)
                 if let total = book.totalPages, total > 0 {
-                    let after = book.pagesRead + Int(pages)
+                    let after = book.pagesRead + Int(pages.rounded())
                     VStack(alignment: .leading, spacing: 4) {
                         ProgressView(value: Double(min(after, total)), total: Double(total)).tint(AppKind.read.color)
                         Text("\(book.pagesRead) → \(after) of \(total) · \(min(100, after * 100 / total))%")
@@ -357,8 +357,8 @@ struct ReadLogView: View {
                     }
                     .listRowBackground(Color.clear)
                 }
-                LogButton(title: "Log \(Int(pages)) pages", kind: .read) {
-                    store.logPages(Int(pages), book: book.id)
+                LogButton(title: "Log \(Int(pages.rounded())) pages", kind: .read) {
+                    store.logPages(Int(pages.rounded()), book: book.id)
                     dismiss()
                 }
             } else {
