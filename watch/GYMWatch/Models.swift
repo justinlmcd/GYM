@@ -132,6 +132,30 @@ nonisolated enum Day {
         return String(ts.prefix(10))
     }
 
+    static func adding(_ n: Int, to day: String) -> String {
+        guard let d = formatter.date(from: day) else { return day }
+        return string(Calendar.current.date(byAdding: .day, value: n, to: d) ?? d)
+    }
+
+    // A bill's next charge on or after today: its first date rolled forward on its schedule
+    // (weekly, monthly or yearly) past dates already gone, as on the MONEY page. Jan 31 monthly lands on Feb 28.
+    static func nextDue(from first: String, cadence: String) -> String? {
+        guard let start = formatter.date(from: first) else { return nil }
+        let today = string()
+        var k = 0, day = first
+        while day < today && k < 600 {
+            k += 1
+            let next: Date?
+            switch cadence {
+            case "weekly": next = Calendar.current.date(byAdding: .day, value: 7 * k, to: start)
+            case "yearly": next = Calendar.current.date(byAdding: .year, value: k, to: start)
+            default: next = Calendar.current.date(byAdding: .month, value: k, to: start)
+            }
+            day = next.map { string($0) } ?? today
+        }
+        return day
+    }
+
     // The Monday that starts this week, as on GYM and YOU.
     static func weekStart() -> String {
         var cal = Calendar(identifier: .gregorian)

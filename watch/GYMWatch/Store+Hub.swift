@@ -75,7 +75,17 @@ extension Store {
         let plan = spendLines.reduce(0) { $0 + $1.amount.value }
         hub.budgetByCategory = Dictionary(spendLines.compactMap { l in l.category.map { ($0, l.amount.value) } }, uniquingKeysWith: +)
         hub.spentByCategory = Dictionary(rows.filter { $0.occurredOn >= month && $0.occurredOn <= today }.map { ($0.category, $0.amount.value) }, uniquingKeysWith: +)
-        let todayNote = spentToday > 0 ? "\(formatMoney(spentToday)) today" : "nothing today"
+        // Bills due in the next 7 days and the debts list, for MONEY's screen and this row's note.
+        let subs: [SubRow]? = try? await api.rows("subscriptions?select=name,amount,cadence,next_charge&active=eq.true")
+        hub.bills = (subs ?? []).compactMap { s in
+            s.nextCharge.flatMap { Day.nextDue(from: $0, cadence: s.cadence) }.map { DueBill(name: s.name, amount: s.amount.value, day: $0) }
+        }.sorted { $0.day < $1.day || ($0.day == $1.day && $0.amount > $1.amount) }
+        let debts: [DebtRow]? = try? await api.rows("debts?select=id,name,balance,min_payment&order=balance")
+        hub.debtsReady = debts != nil
+        hub.debts = (debts ?? []).map { WatchDebt(id: $0.id, name: $0.name, balance: $0.balance.value, minPayment: $0.minPayment?.value) }
+        let dueTotal = hub.billsThisWeek.reduce(0) { $0 + $1.amount }
+        let dueNote = dueTotal > 0 ? " · \(formatMoney(dueTotal)) due this week" : ""
+        let todayNote = (spentToday > 0 ? "\(formatMoney(spentToday)) today" : "nothing today") + dueNote
         var t = AppTile(kind: .money)
         if plan > 0 {
             t.value = formatMoney(abs(plan - spent))
@@ -206,6 +216,14 @@ extension Store {
             "value": (value * 10).rounded() / 10, "unit": unit, "event_type": "measurement",
             "source": "watch", "source_id": UUID().uuidString.lowercased(), "context": ["area": "body"],
         ])
+    }
+
+    // Lowers a debt's balance by what you paid. Sent as the new balance, so a retried upload lands the same.
+    func recordDebtPayment(_ amount: Double, debt: WatchDebt) {
+        let left = max(0, ((debt.balance - amount) * 100).rounded() / 100)
+        if let i = hub.debts.firstIndex(where: { $0.id == debt.id }) { hub.debts[i].balance = left }
+        queue("debts", ["id": debt.id.uuidString.lowercased(), "name": debt.name, "balance": left,
+                        "updated_at": ISO8601DateFormatter().string(from: Date())], onConflict: "id")
     }
 
     func logExpense(_ amount: Double, category: String, merchant: String) {

@@ -3,7 +3,7 @@
 All six apps on your wrist. The home screen shows each one's number for today (weight, money left this month, workouts this week, calories, your day's rating, pages read), its 🔥 streak, a check once you've logged it today, and **4 of 6 logged today** at the top, read from the same tables as the YOU page. Tap any app to log to it from your wrist:
 
 - **BODY**: today's weight on the crown, starting from your last reading.
-- **MONEY**: an amount on the crown, a category and where, with what's left of that category's budget this month.
+- **MONEY**: an amount on the crown, a category and where, with what's left of that category's budget this month. Below it, the bills due in the next 7 days with their total, and your debts: tap one to record a payment (starting at its minimum) and the balance drops. The MONEY row also shows what's due this week.
 - **GYM**: your workouts, cardio and sets, below.
 - **MEAL**: calories, protein, carbs and fat on the crown, an optional name, and which meal, with today's totals against your goals. Tap a recent or saved food to fill all four in one go.
 - **WRITE**: rate today 1–10 and add a note by voice; saving again updates today's entry.
