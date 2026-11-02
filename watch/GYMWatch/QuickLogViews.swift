@@ -272,7 +272,7 @@ struct MealLogView: View {
     }
 
     // Breakfast before 10:30, lunch until 3, dinner until 9, otherwise a snack.
-    private static func slotNow() -> String {
+    static func slotNow() -> String {
         let c = Calendar.current.dateComponents([.hour, .minute], from: Date())
         let m = (c.hour ?? 12) * 60 + (c.minute ?? 0)
         if m < 630 { return "breakfast" }

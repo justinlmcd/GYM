@@ -57,6 +57,7 @@ extension Store {
             t.loggedToday = days[0] == Day.string()
             hub.lastWeight = latest.value.value
             hub.weightUnit = latest.unit
+            UserDefaults.standard.set(latest.unit, forKey: "weightUnit") // for Siri, when the app is closed
         } else {
             t.note = "no readings yet"
         }
@@ -210,12 +211,12 @@ extension Store {
 
 // The quick-log screens' saves. Each goes into the outbox, then uploads to that app's own table.
 extension Store {
-    func logWeight(_ value: Double, unit: String) {
+    func logWeight(_ value: Double, unit: String, upload: Bool = true) {
         queue("events", [
             "occurred_at": ISO8601DateFormatter().string(from: Date()), "metric": "weight",
             "value": (value * 10).rounded() / 10, "unit": unit, "event_type": "measurement",
             "source": "watch", "source_id": UUID().uuidString.lowercased(), "context": ["area": "body"],
-        ])
+        ], upload: upload)
     }
 
     // Lowers a debt's balance by what you paid. Sent as the new balance, so a retried upload lands the same.
@@ -226,26 +227,59 @@ extension Store {
                         "updated_at": ISO8601DateFormatter().string(from: Date())], onConflict: "id")
     }
 
-    func logExpense(_ amount: Double, category: String, merchant: String) {
-        queue("transactions", ["occurred_on": Day.string(), "amount": amount, "category": category, "merchant": merchant, "note": ""])
+    func logExpense(_ amount: Double, category: String, merchant: String, upload: Bool = true) {
+        queue("transactions", ["occurred_on": Day.string(), "amount": amount, "category": category, "merchant": merchant, "note": ""], upload: upload)
     }
 
-    func logMeal(kcal: Int, protein: Int, carbs: Int, fat: Int, name: String, slot: String) {
-        queue("meal_entries", ["eaten_on": Day.string(), "slot": slot, "name": name, "calories": kcal, "protein": protein, "carbs": carbs, "fat": fat, "source": "manual"])
+    func logMeal(kcal: Int, protein: Int, carbs: Int, fat: Int, name: String, slot: String, upload: Bool = true) {
+        queue("meal_entries", ["eaten_on": Day.string(), "slot": slot, "name": name, "calories": kcal, "protein": protein, "carbs": carbs, "fat": fat, "source": "manual"], upload: upload)
     }
 
     // One entry per day: the rating replaces today's, and a new note is added under any note already there.
-    func saveDay(rating: Int, note: String) {
+    func saveDay(rating: Int, note: String, upload: Bool = true) {
         var fields: [String: Any] = ["written_on": Day.string(), "rating": rating, "updated_at": ISO8601DateFormatter().string(from: Date())]
         let text = note.trimmingCharacters(in: .whitespacesAndNewlines)
         if !text.isEmpty {
             let before = hub.journalToday?.body ?? ""
             fields["body"] = before.isEmpty ? text : before + "\n\n" + text
         }
-        queue("journal_entries", fields, onConflict: "user_id,written_on")
+        queue("journal_entries", fields, onConflict: "user_id,written_on", upload: upload)
     }
 
-    func logPages(_ pages: Int, book: UUID) {
-        queue("reading_log", ["book_id": book.uuidString.lowercased(), "read_on": Day.string(), "pages": pages])
+    func logPages(_ pages: Int, book: UUID, upload: Bool = true) {
+        queue("reading_log", ["book_id": book.uuidString.lowercased(), "read_on": Day.string(), "pages": pages], upload: upload)
+    }
+}
+
+// What the Siri shortcuts need when the app may not be running.
+extension Store {
+    // Signed in from the session saved on the watch, without loading everything.
+    func readyForIntent() async -> Bool {
+        if !signedIn {
+            email = await api.email
+            signedIn = email != nil
+        }
+        return signedIn
+    }
+
+    var lastWeightUnit: String { UserDefaults.standard.string(forKey: "weightUnit") ?? hub.weightUnit }
+
+    // Uploads what Siri just logged before it answers, then refreshes the home screen if it's showing.
+    func finishIntent() async {
+        await flush()
+        if hubLoaded { Task { await loadHub() } }
+    }
+
+    // The book you're reading now, newest first.
+    func currentBook() async -> (id: UUID, title: String)? {
+        if let b = hub.books.first { return (b.id, b.title) }
+        let rows: [BookTitleRow]? = try? await api.rows("books?select=id,title&status=eq.reading&order=updated_at.desc&limit=1")
+        return rows?.first.map { ($0.id, $0.title) }
+    }
+
+    // Today's journal entry, so a note said to Siri is added under what's already written.
+    func loadJournalToday() async {
+        let rows: [JournalRow]? = try? await api.rows("journal_entries?select=written_on,rating,body&written_on=eq.\(Day.string())")
+        hub.journalToday = rows?.first.map { JournalToday(rating: $0.rating, body: $0.body ?? "") }
     }
 }
