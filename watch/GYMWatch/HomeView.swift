@@ -3,6 +3,8 @@ import SwiftUI
 // YOU on the watch: every app's number for today, its streak, and how many you've logged.
 struct HomeView: View {
     @Environment(Store.self) private var store
+    @AppStorage(Store.reminderOnKey) private var reminderOn = true
+    @AppStorage(Store.reminderHourKey) private var reminderHour = 20
 
     var body: some View {
         NavigationStack {
@@ -42,6 +44,25 @@ struct HomeView: View {
                         NavigationLink { quickLog(for: tile.kind) } label: { TileRow(tile: tile) }
                     }
                 }
+
+                Section {
+                    Toggle("Evening reminder", isOn: $reminderOn)
+                    if reminderOn {
+                        Picker("Time", selection: $reminderHour) {
+                            ForEach(17...23, id: \.self) { h in
+                                Text(Calendar.current.date(bySettingHour: h, minute: 0, second: 0, of: .now)?.formatted(date: .omitted, time: .shortened) ?? "\(h):00").tag(h)
+                            }
+                        }
+                    }
+                } header: {
+                    Text("Streak saver")
+                } footer: {
+                    Text(store.remindersBlocked
+                         ? "Notifications are off for YOU. Turn them on in the Watch app on your iPhone: Notifications → YOU."
+                         : "Only if something isn't logged yet, with the streak that ends at midnight.")
+                }
+                .onChange(of: reminderOn) { _, _ in Task { await store.scheduleReminders() } }
+                .onChange(of: reminderHour) { _, _ in Task { await store.scheduleReminders() } }
 
                 Section {
                     Button("Refresh") { Task { await store.refreshAll() } }

@@ -21,5 +21,9 @@ struct GYMWatchApp: App {
                 if phase == .active { Task { await store.flush(); await store.loadHub() } }
             }
         }
+        // Half an hour before the evening reminder, refresh today's numbers so its text is current.
+        .backgroundTask(.appRefresh(Store.refreshTaskID)) { [store] in
+            await store.backgroundRefresh()
+        }
     }
 }
