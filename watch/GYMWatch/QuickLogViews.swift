@@ -11,6 +11,7 @@ func quickLog(for kind: AppKind) -> some View {
     case .meal: MealLogView()
     case .write: WriteLogView()
     case .read: ReadLogView()
+    case .sleep: SleepView()
     }
 }
 
@@ -367,5 +368,59 @@ struct ReadLogView: View {
         }
         .navigationTitle("READ")
         .onAppear { focused = true }
+    }
+}
+
+// SLEEP: nothing to log. Last night from Apple Health, its stages, and your week against your goal.
+struct SleepView: View {
+    @Environment(Store.self) private var store
+    @State private var syncing = false
+
+    var body: some View {
+        let nights = store.hub.sleepNights, goal = Int(store.hub.sleepGoalHours * 60)
+        List {
+            if let last = nights.first {
+                Section {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(formatSleep(last.asleepMin))
+                            .font(.system(size: 34, weight: .semibold, design: .rounded))
+                            .monospacedDigit()
+                        Text(last.night == Day.string() ? "last night" : Day.label(last.night))
+                            .font(.footnote).foregroundStyle(.secondary)
+                    }
+                    .listRowBackground(Color.clear)
+                    if let bed = clockTime(last.bedtime), let up = clockTime(last.wakeTime) {
+                        LabeledContent("Bed → up", value: "\(bed) → \(up)")
+                    }
+                    if let deep = last.deepMin, let core = last.coreMin, let rem = last.remMin {
+                        LabeledContent("Deep", value: formatSleep(deep))
+                        LabeledContent("Core", value: formatSleep(core))
+                        LabeledContent("REM", value: formatSleep(rem))
+                    }
+                    if let awake = last.awakeMin, awake > 0 { LabeledContent("Awake", value: formatSleep(awake)) }
+                    if let hr = last.restingHr { LabeledContent("Resting HR", value: "\(Int(hr.value.rounded())) bpm") }
+                }
+                Section("Last 7 nights") {
+                    let week = Array(nights.prefix(7))
+                    let avg = week.reduce(0) { $0 + $1.asleepMin } / max(week.count, 1)
+                    LabeledContent("Average", value: formatSleep(avg))
+                    LabeledContent("Goal met", value: "\(week.filter { $0.asleepMin >= goal }.count) of \(week.count)")
+                }
+            } else {
+                Text("No nights yet. Wear your watch to bed with Sleep turned on (Health app on your iPhone → Sleep), and allow YOU to read Sleep when asked.")
+                    .font(.footnote).foregroundStyle(.secondary)
+            }
+            Button {
+                syncing = true
+                Task {
+                    await store.loadHub() // syncs from Apple Health first
+                    syncing = false
+                }
+            } label: {
+                if syncing { ProgressView() } else { Label("Sync now", systemImage: "arrow.triangle.2.circlepath") }
+            }
+            .disabled(syncing)
+        }
+        .navigationTitle("SLEEP")
     }
 }

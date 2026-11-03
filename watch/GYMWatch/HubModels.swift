@@ -1,8 +1,8 @@
 import SwiftUI
 
-// The six apps YOU brings together, in YOU's order, each with its own colour from the web pages.
+// The seven apps YOU brings together, in YOU's order, each with its own colour from the web pages.
 nonisolated enum AppKind: String, CaseIterable, Identifiable, Hashable {
-    case body, money, gym, meal, write, read
+    case body, money, gym, meal, write, read, sleep
 
     var id: String { rawValue }
     var title: String { rawValue.uppercased() }
@@ -15,6 +15,7 @@ nonisolated enum AppKind: String, CaseIterable, Identifiable, Hashable {
         case .meal: return "fork.knife"
         case .write: return "pencil.line"
         case .read: return "book"
+        case .sleep: return "bed.double"
         }
     }
 
@@ -26,6 +27,7 @@ nonisolated enum AppKind: String, CaseIterable, Identifiable, Hashable {
         case .meal: return Color(red: 0.788, green: 0.655, blue: 1.0)
         case .write: return Color(red: 1.0, green: 0.851, blue: 0.541)
         case .read: return Color(red: 1.0, green: 0.722, blue: 0.420)
+        case .sleep: return Color(red: 0.604, green: 0.659, blue: 1.0)
         }
     }
 }
@@ -131,6 +133,8 @@ nonisolated struct HubData {
     var bills: [DueBill] = []
     var debts: [WatchDebt] = []
     var debtsReady = false
+    var sleepNights: [SleepRow] = []
+    var sleepGoalHours = 8.0
 
     var billsThisWeek: [DueBill] { let end = Day.adding(6, to: Day.string()); return bills.filter { $0.day <= end } }
 }
@@ -167,6 +171,38 @@ nonisolated struct WatchDebt: Identifiable, Hashable {
 }
 
 nonisolated struct BookTitleRow: Decodable { let id: UUID; let title: String }
+
+// One night from the sleep_nights table.
+nonisolated struct SleepRow: Decodable, Hashable {
+    let night: String
+    let bedtime: String?
+    let wakeTime: String?
+    let asleepMin: Int
+    let awakeMin: Int?
+    let coreMin: Int?
+    let deepMin: Int?
+    let remMin: Int?
+    let restingHr: Num?
+    enum CodingKeys: String, CodingKey {
+        case night, bedtime
+        case wakeTime = "wake_time", asleepMin = "asleep_min", awakeMin = "awake_min"
+        case coreMin = "core_min", deepMin = "deep_min", remMin = "rem_min", restingHr = "resting_hr"
+    }
+}
+nonisolated struct SleepGoalRow: Decodable { let goalHours: Num
+    enum CodingKeys: String, CodingKey { case goalHours = "goal_hours" } }
+
+// "7h 12m"
+nonisolated func formatSleep(_ minutes: Int) -> String { "\(minutes / 60)h \(String(format: "%02d", minutes % 60))m" }
+// "11:40 PM" from a stored timestamp.
+nonisolated func clockTime(_ ts: String?) -> String? {
+    guard let ts else { return nil }
+    let f = ISO8601DateFormatter()
+    f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+    if let d = f.date(from: ts) { return d.formatted(date: .omitted, time: .shortened) }
+    f.formatOptions = [.withInternetDateTime]
+    return f.date(from: ts)?.formatted(date: .omitted, time: .shortened)
+}
 
 nonisolated struct JournalToday { let rating: Int; let body: String }
 

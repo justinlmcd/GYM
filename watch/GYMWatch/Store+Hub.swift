@@ -10,13 +10,15 @@ extension Store {
     // Each app is read on its own, so one that isn't set up never blanks the others.
     func loadHub() async {
         guard signedIn else { return }
+        await syncSleep() // last night from Apple Health, before its row is read
         let body = await tile(.body) { try await self.bodyTile() }
         let money = await tile(.money) { try await self.moneyTile() }
         let gym = await tile(.gym) { try await self.loadCardioDays() }
         let meal = await tile(.meal) { try await self.mealTile() }
         let write = await tile(.write) { try await self.writeTile() }
         let read = await tile(.read) { try await self.readTile() }
-        tiles = [body, money, gym, meal, write, read]
+        let sleep = await tile(.sleep) { try await self.sleepTile() }
+        tiles = [body, money, gym, meal, write, read, sleep]
         hubLoaded = true
         // Hand today's numbers to the watch-face complication.
         Snapshot.save(Snapshot(day: Day.string(), logged: loggedTodayCount, connected: connectedCount, apps: hubTiles.filter { $0.status == .ok }.map {
@@ -99,6 +101,25 @@ extension Store {
         }
         t.loggedToday = spentToday > 0
         t.streak = Streak(days: rows.map(\.occurredOn), since: since)
+        return t
+    }
+
+    // Last night's sleep, synced from Apple Health. It counts as logged once this morning's night is in.
+    private func sleepTile() async throws -> AppTile {
+        let rows: [SleepRow] = try await api.rows("sleep_nights?select=night,bedtime,wake_time,asleep_min,awake_min,core_min,deep_min,rem_min,resting_hr&night=gte.\(since)&order=night.desc")
+        let goals: [SleepGoalRow]? = try? await api.rows("sleep_goals?select=goal_hours&limit=1")
+        hub.sleepNights = rows
+        hub.sleepGoalHours = goals?.first?.goalHours.value ?? 8
+        var t = AppTile(kind: .sleep)
+        if let last = rows.first {
+            t.value = formatSleep(last.asleepMin)
+            let times = [clockTime(last.bedtime).map { "bed \($0)" }, clockTime(last.wakeTime).map { "up \($0)" }].compactMap { $0 }.joined(separator: ", ")
+            t.note = (last.night == Day.string() ? "last night" : Day.label(last.night)) + (times.isEmpty ? "" : " · " + times)
+            t.loggedToday = last.night == Day.string()
+        } else {
+            t.note = "wear your watch to bed with Sleep on"
+        }
+        t.streak = Streak(days: rows.map(\.night), since: since)
         return t
     }
 

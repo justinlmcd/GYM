@@ -53,7 +53,7 @@ extension Store {
 
     // "WRITE and READ aren't logged yet today. 🔥 21 on WRITE ends at midnight."
     func reminderText() -> String? {
-        let missing = hubTiles.filter { $0.status == .ok && !$0.loggedToday }
+        let missing = hubTiles.filter { $0.status == .ok && !$0.loggedToday && $0.kind != .sleep } // sleep logs itself
         guard !missing.isEmpty else { return nil }
         let names = missing.map(\.kind.title)
         let list = names.count == 1 ? names[0] : names.dropLast().joined(separator: ", ") + " and " + names.last!
@@ -65,10 +65,15 @@ extension Store {
     }
 
     // Asks watchOS to wake the app half an hour before the next reminder to refresh its text.
+    // Also at 9am, to pick up last night's sleep. Whichever comes next is asked for; each refresh asks for the next.
     func scheduleBackgroundRefresh() {
-        let cal = Calendar.current
-        guard var when = cal.date(bySettingHour: reminderHour, minute: 0, second: 0, of: Date())?.addingTimeInterval(-30 * 60) else { return }
-        if when <= Date() { when = cal.date(byAdding: .day, value: 1, to: when) ?? when }
+        let cal = Calendar.current, now = Date()
+        let times = [(reminderHour, -30 * 60.0), (9, 0.0)].flatMap { hour, shift in
+            (0...1).compactMap { day in
+                cal.date(byAdding: .day, value: day, to: now).flatMap { cal.date(bySettingHour: hour, minute: 0, second: 0, of: $0) }?.addingTimeInterval(shift)
+            }
+        }
+        guard let when = times.filter({ $0 > now }).min() else { return }
         WKApplication.shared().scheduleBackgroundRefresh(withPreferredDate: when, userInfo: Self.refreshTaskID as NSString) { _ in }
     }
 
