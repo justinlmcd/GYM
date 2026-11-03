@@ -1,6 +1,6 @@
 # YOU for Apple Watch
 
-All six apps on your wrist. The home screen shows each one's number for today (weight, money left this month, workouts this week, calories, your day's rating, pages read), its 🔥 streak, a check once you've logged it today, and **4 of 6 logged today** at the top, read from the same tables as the YOU page. Tap any app to log to it from your wrist:
+All seven apps on your wrist. The home screen shows each one's number for today (weight, money left this month, workouts this week, calories, your day's rating, pages read, last night's sleep), its 🔥 streak, a check once you've logged it today, and **4 of 6 logged today** at the top, read from the same tables as the YOU page. Tap any app to log to it from your wrist:
 
 - **BODY**: today's weight on the crown, starting from your last reading.
 - **MONEY**: an amount on the crown, a category and where, with what's left of that category's budget this month. Below it, the bills due in the next 7 days with their total, and your debts: tap one to record a payment (starting at its minimum) and the balance drops. The MONEY row also shows what's due this week.
@@ -8,6 +8,7 @@ All six apps on your wrist. The home screen shows each one's number for today (w
 - **MEAL**: calories, protein, carbs and fat on the crown, an optional name, and which meal, with today's totals against your goals. Tap a recent or saved food to fill all four in one go.
 - **WRITE**: rate today 1–10 and add a note by voice; saving again updates today's entry.
 - **READ**: pages read for a book you're reading, with where they take you (needs READ's pages.sql).
+- **SLEEP**: nothing to log. Last night comes from Apple Health on its own (hours asleep, bed and wake times, deep, core and REM, resting heart rate) and uploads to the `sleep_nights` table each morning, including a 9am background refresh. Its screen shows last night and your week against your sleep goal, with **Sync now**. Wear your watch to bed with Sleep turned on (Health app → Sleep) and allow YOU to read Sleep when asked.
 
 **Apple Workouts.** In GYM, **Start workout** (on GYM's screen, or on a saved workout like Chest day 1) runs an Apple strength workout: elapsed time, heart rate and calories show live while you log sets, and **End workout** saves it to Apple Health so it counts toward your Activity rings. In Cardio, **Start timer** also starts the matching Apple Workout (treadmill as running, bike as indoor cycling, stairs, rowing, elliptical), and **Stop** fills in the minutes and calories for you. It needs the HealthKit setup below; without it the timers work as before.
 
@@ -78,6 +79,7 @@ To try it without a watch first, pick an Apple Watch simulator as the run destin
 - `QuickLogViews.swift`: the BODY, MONEY, MEAL, WRITE and READ log screens each row opens
 - `WorkoutManager.swift`: the Apple Workout (HealthKit) behind GYM's Start workout and the cardio timer, and the live heart rate and calories bar
 - `SiriShortcuts.swift`: the "Hey Siri" phrases and what each one logs
+- `SleepSync.swift`: reads your nights from Apple Health and uploads new or changed ones to SLEEP
 - `Reminders.swift`: the evening streak-saver notification and the background refresh before it
 - `HubModels.swift` and `Store+Hub.swift`: what each app's row reads and how its number, note and streak are worked out
 - `ExerciseListView.swift`: GYM's screen: workouts, cardio and your exercises, today's ones first

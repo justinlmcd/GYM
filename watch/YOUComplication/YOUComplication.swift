@@ -100,6 +100,7 @@ struct YOUComplicationView: View {
         case "gym": return Color(red: 1.0, green: 0.608, blue: 0.608)
         case "meal": return Color(red: 0.788, green: 0.655, blue: 1.0)
         case "write": return Color(red: 1.0, green: 0.851, blue: 0.541)
+        case "sleep": return Color(red: 0.604, green: 0.659, blue: 1.0)
         default: return Color(red: 1.0, green: 0.722, blue: 0.420)
         }
     }
