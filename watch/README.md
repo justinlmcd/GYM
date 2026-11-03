@@ -1,6 +1,6 @@
 # YOU for Apple Watch
 
-All seven apps on your wrist. The home screen shows each one's number for today (weight, money left this month, workouts this week, calories, your day's rating, pages read, last night's sleep), its 🔥 streak, a check once you've logged it today, and **4 of 6 logged today** at the top, read from the same tables as the YOU page. Tap any app to log to it from your wrist:
+All seven apps on your wrist. The home screen shows each one's number for today (weight, money left this month, workouts this week, calories, your day's rating, pages read, last night's sleep), its 🔥 streak, a check once you've logged it today, and **4 of 7 logged today** at the top, read from the same tables as the YOU page. Tap any app to log to it from your wrist:
 
 - **BODY**: today's weight on the crown, starting from your last reading.
 - **MONEY**: an amount on the crown, a category and where, with what's left of that category's budget this month. Below it, the bills due in the next 7 days with their total, and your debts: tap one to record a payment (starting at its minimum) and the balance drops. The MONEY row also shows what's due this week.
@@ -53,8 +53,8 @@ You need a Mac with **Xcode 26 or later**, your iPhone, and your Apple Watch on 
 
 1. Select the project → the watch app target → **Signing & Capabilities** → **+ Capability** → **HealthKit**.
 2. Same screen: **+ Capability** → **Background Modes**, and tick **Workout processing**.
-3. The **Info** tab: add two rows with **+**: **Privacy - Health Share Usage Description** and **Privacy - Health Update Usage Description**, each set to `YOU reads your heart rate and calories during workouts and saves them to Apple Health.`
-4. Run it (⌘R). The first workout asks for Health access: allow it.
+3. The **Info** tab: add two rows with **+**: **Privacy - Health Share Usage Description** and **Privacy - Health Update Usage Description**, set to `YOU reads your heart rate and calories during workouts, and your sleep, and saves workouts to Apple Health.`
+4. Run it (⌘R). The first time, YOU asks for Health access: allow it, including **Sleep** and **Resting Heart Rate** so SLEEP fills in. If you said no earlier, change it on the iPhone: **Settings → Health → Data Access & Devices → YOU**.
 
 ### The watch-face complication
 
