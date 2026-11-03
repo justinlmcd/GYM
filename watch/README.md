@@ -42,7 +42,7 @@ You need a Mac with **Xcode 26 or later**, your iPhone, and your Apple Watch on 
 1. **Make the project.** In Xcode: **File → New → Project → watchOS → App**. Name it `GYM`, interface **SwiftUI**, and choose **Watch-only App**. Save it inside this `watch/` folder.
 2. **Name it YOU.** Select the project → the watch app target → **General**, and set **Display Name** to `YOU`.
 3. **Swap in the code.** In the project navigator, delete the generated `ContentView.swift` and `GYMApp.swift` (Move to Trash). Then drag every `.swift` file from `watch/GYMWatch/` onto the watch app's folder in Xcode. Leave **Copy items if needed** unticked, and tick the watch app target.
-4. **Add the icon.** Delete the generated `Assets.xcassets` (Move to Trash), then drag `watch/GYMWatch/Assets.xcassets` in the same way. It holds the app icon (YOU's six dots) and the accent color.
+4. **Add the icon.** Delete the generated `Assets.xcassets` (Move to Trash), then drag `watch/GYMWatch/Assets.xcassets` in the same way. It holds the app icon (YOU's seven dots in a ring) and the accent color.
 5. **Add your Supabase settings.** Open `Config.swift` and paste your project URL and publishable key (`sb_publishable_…`), the same two values as the GYM web app's Vercel settings. The publishable key is the public one; never use a secret or service-role key.
 6. **Sign the app.** Select the project → the watch app target → **Signing & Capabilities** → choose your Apple ID under **Team**. Check that **Minimum Deployments** is watchOS 10.0 or later.
 7. **Turn on Developer Mode.** Plug your iPhone into the Mac and trust it. On the iPhone: **Settings → Privacy & Security → Developer Mode** → on. On the watch: **Settings → Privacy & Security → Developer Mode** → on. Both restart.
