@@ -7,7 +7,8 @@ const MUSCLES=['Chest','Back','Shoulders','Arms','Legs','Glutes','Core','Full bo
 const COLORS=['#3987e5','#d95926','#199e70','#c98500','#d55181','#008300','#9085e9','#e66767'];
 const PAGE=1000;
 const isoDay=d=>{ const x=new Date(d); return new Date(x.getTime()-x.getTimezoneOffset()*60000).toISOString().slice(0,10); };
-const today=()=>isoDay(new Date());
+// Today in your time zone, with your day running until the hour you chose in YOU's settings.
+const today=()=>window.youSettings?window.youSettings.dayOf(Date.now()):isoDay(new Date());
 const parseDay=s=>{ const [y,m,d]=s.split('-').map(Number); return new Date(y,m-1,d); };
 const addDays=(s,n)=>isoDay(new Date(parseDay(s).getTime()+n*86400000+3600000*6));
 const shortDate=s=>parseDay(s).toLocaleDateString([], {month:'short',day:'numeric'});
@@ -27,7 +28,7 @@ function message(id,text,kind=''){ $(id).textContent=text; $(id).className='mess
 $('ex-muscle').innerHTML=MUSCLES.map(m=>`<option>${esc(m)}</option>`).join('');
 
 // ---- connection: the two public Supabase settings come from /api/config ----
-function projectConfig(v){ const url=typeof v?.url==='string'?v.url.trim().replace(/\/$/,''):'', key=typeof v?.key==='string'?v.key.trim():''; if(!/^https:\/\/[a-z0-9-]+\.supabase\.co$/.test(url)||!/^sb_publishable_[A-Za-z0-9_-]+$/.test(key)) throw new Error('This page needs its Supabase connection set up in Vercel.'); if(typeof v?.home==='string'&&/^https?:\/\//.test(v.home)) document.getElementById('home-link').href=v.home; return {url,key}; }
+function projectConfig(v){ const url=typeof v?.url==='string'?v.url.trim().replace(/\/$/,''):'', key=typeof v?.key==='string'?v.key.trim():''; if(!/^https:\/\/[a-z0-9-]+\.supabase\.co$/.test(url)||!/^sb_publishable_[A-Za-z0-9_-]+$/.test(key)) throw new Error('This page needs its Supabase connection set up in Vercel.'); if(typeof v?.home==='string'&&/^https?:\/\//.test(v.home)) document.getElementById('home-link').href=v.home; { const sl=document.getElementById('settings-link'); if(sl) sl.href=v.home.replace(/\/+$/,'')+'/#settings'; } return {url,key}; }
 // The house button goes to the YOU hub. Its address comes from URL_HOME in Vercel.
 (function(){ const a=document.getElementById('home-link'); if(!a)return; a.addEventListener('click',e=>{ if(a.getAttribute('href')==='#'){ e.preventDefault(); alert('Set URL_HOME in this project\'s Vercel environment variables to your YOU hub address, then redeploy.'); } }); })();
 async function connect(){
@@ -50,6 +51,7 @@ function makeClient(config){
 function setUser(next){
   if(next?.id===user?.id)return;
   user=next; loadId++;
+  if(user&&client) window.youSettings?.sync(client);
   $('connect-open').hidden=!!user;
   for(const id of ['sign-out','log-open','log-open-2','ex-open','csv-log','cardio-open','cardio-open-2','csv-cardio']) $(id).hidden=!user;
   $('cardio-fields').disabled=!user; $('w-fields').disabled=!user;
@@ -323,7 +325,7 @@ function openLog(prefill){
 $('log-exercise').onchange=()=>{ if($('log-edit-key').value)return; const ex=exById($('log-exercise').value); if(!ex)return; const s=suggest(ex); fillSets(Array.from({length:ex.target_sets},()=>({weight:s.weight===null?'':num(s.weight),reps:''}))); };
 function openEx(row){
   if(!user){ $('connection-dialog').showModal(); return; }
-  $('ex-id').value=row?.id||''; $('ex-title').textContent=row?'Edit exercise.':'New exercise.'; $('ex-name').value=row?.name||''; $('ex-muscle').value=row?.muscle||'Chest'; $('ex-unit').value=row?.unit||'lbs'; $('ex-sets').value=row?.target_sets??3; $('ex-reps').value=row?.target_reps??8; $('ex-inc').value=row?num(row.increment):'5';
+  $('ex-id').value=row?.id||''; $('ex-title').textContent=row?'Edit exercise.':'New exercise.'; $('ex-name').value=row?.name||''; $('ex-muscle').value=row?.muscle||'Chest'; $('ex-unit').value=row?.unit||window.youSettings?.get().weight||'lbs'; $('ex-sets').value=row?.target_sets??3; $('ex-reps').value=row?.target_reps??8; $('ex-inc').value=row?num(row.increment):'5';
   message('ex-message',''); $('ex-dialog').showModal(); $('ex-name').focus();
 }
 $('log-open').onclick=()=>openLog(); $('log-open-2').onclick=()=>openLog(); $('next-log').onclick=()=>openLog({exercise:picked}); $('ex-open').onclick=()=>openEx();
@@ -390,4 +392,5 @@ window.coach={app:'gym',userId:async()=>user?.id||null,session:async()=>{ try{ c
 // Reconnect a saved session, if any.
 render();
 connect().catch(()=>{});
+window.youSettings?.on((v,keys)=>{ if(user&&keys.some(k=>k==='timeZone'||k==='dayEnds')) load(); });
 })();

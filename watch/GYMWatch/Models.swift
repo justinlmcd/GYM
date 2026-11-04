@@ -101,40 +101,50 @@ nonisolated struct Session: Codable {
 }
 
 nonisolated enum Day {
+    // From YOU's Settings tab, read from your account when the home screen loads and kept on the watch:
+    // your time zone, and the hour your day ends (0 = midnight; with 3, 1:30 AM still counts as the day before).
+    static let zoneKey = "settingsTimeZone", dayEndsKey = "settingsDayEnds"
+    nonisolated(unsafe) static var zone: TimeZone = savedZone() { didSet { formatter.timeZone = zone; calendar.timeZone = zone } }
+    nonisolated(unsafe) static var dayEnds: Int = UserDefaults.standard.integer(forKey: dayEndsKey)
+    static func savedZone() -> TimeZone { UserDefaults.standard.string(forKey: zoneKey).flatMap(TimeZone.init(identifier:)) ?? .current }
+
+    nonisolated(unsafe) private static var calendar: Calendar = {
+        var c = Calendar(identifier: .gregorian); c.timeZone = savedZone(); return c
+    }()
     nonisolated(unsafe) private static let formatter: DateFormatter = {
         let f = DateFormatter()
         f.calendar = Calendar(identifier: .gregorian)
         f.locale = Locale(identifier: "en_US_POSIX")
-        f.timeZone = .current
+        f.timeZone = savedZone()
         f.dateFormat = "yyyy-MM-dd"
         return f
     }()
 
-    // Local calendar day, matching GYM's today().
-    static func string(_ date: Date = Date()) -> String { formatter.string(from: date) }
-    static func daysAgo(_ n: Int) -> String {
-        string(Calendar.current.date(byAdding: .day, value: -n, to: Date()) ?? Date())
-    }
+    // Today, in your time zone, running until the hour your day ends. New logs are dated with it, like the web apps.
+    static func string() -> String { string(Date().addingTimeInterval(-Double(dayEnds) * 3600)) }
+    // The calendar day of a moment, in your time zone.
+    static func string(_ date: Date) -> String { formatter.string(from: date) }
+    static func daysAgo(_ n: Int) -> String { adding(-n, to: string()) }
 
     // The day before a "yyyy-MM-dd" day.
     static func before(_ day: String) -> String {
         guard let d = formatter.date(from: day) else { return "" }
-        return string(Calendar.current.date(byAdding: .day, value: -1, to: d) ?? d)
+        return string(calendar.date(byAdding: .day, value: -1, to: d) ?? d)
     }
 
     // The local day of a timestamp like "2026-11-02T14:05:00.123+00:00" (BODY's readings).
     static func string(fromTimestamp ts: String) -> String {
         let f = ISO8601DateFormatter()
         f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        if let d = f.date(from: ts) { return string(d) }
+        if let d = f.date(from: ts) { return string(d.addingTimeInterval(-Double(dayEnds) * 3600)) }
         f.formatOptions = [.withInternetDateTime]
-        if let d = f.date(from: ts) { return string(d) }
+        if let d = f.date(from: ts) { return string(d.addingTimeInterval(-Double(dayEnds) * 3600)) }
         return String(ts.prefix(10))
     }
 
     static func adding(_ n: Int, to day: String) -> String {
         guard let d = formatter.date(from: day) else { return day }
-        return string(Calendar.current.date(byAdding: .day, value: n, to: d) ?? d)
+        return string(calendar.date(byAdding: .day, value: n, to: d) ?? d)
     }
 
     // A bill's next charge on or after today: its first date rolled forward on its schedule

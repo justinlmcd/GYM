@@ -16,6 +16,9 @@ nonisolated struct Snapshot: Codable {
     let day: String
     let logged: Int
     let connected: Int
+    // When your day ends and your time zone, from YOU's settings, so the complication starts a new day when you do.
+    var dayEnds: Int? = nil
+    var zone: String? = nil
     let apps: [App]
 
     // The app's own bundle id, worked out the same way in the app and in its extension (whose id adds one more part).
@@ -40,26 +43,37 @@ nonisolated struct Snapshot: Codable {
 
     // On a new day nothing is logged yet. Yesterday's kept streaks are still alive; any others have ended.
     func asOf(_ date: Date) -> Snapshot {
-        let today = Self.dayString(date)
+        let today = dayString(date)
         if day == today { return self }
-        let yesterday = Self.dayString(Calendar.current.date(byAdding: .day, value: -1, to: date) ?? date)
+        let yesterday = dayString(date.addingTimeInterval(-86_400))
         let alive = day == yesterday
-        return Snapshot(day: today, logged: 0, connected: connected, apps: apps.map {
+        return Snapshot(day: today, logged: 0, connected: connected, dayEnds: dayEnds, zone: zone, apps: apps.map {
             App(kind: $0.kind, streak: alive && $0.kept ? $0.streak : 0, kept: false, logged: false)
         })
     }
 
     var bestStreak: App? { apps.filter { $0.streak > 0 }.max { $0.streak < $1.streak } }
 
-    static func dayString(_ date: Date) -> String {
+    // Which day a moment counts as: your time zone, with the day running until dayEnds o'clock.
+    func dayString(_ date: Date) -> String {
         let f = DateFormatter()
         f.calendar = Calendar(identifier: .gregorian)
         f.locale = Locale(identifier: "en_US_POSIX")
+        f.timeZone = zone.flatMap(TimeZone.init(identifier:)) ?? .current
         f.dateFormat = "yyyy-MM-dd"
-        return f.string(from: date)
+        return f.string(from: date.addingTimeInterval(-Double(dayEnds ?? 0) * 3600))
     }
 
-    static let sample = Snapshot(day: dayString(Date()), logged: 4, connected: 6, apps: [
+    // When the next day starts: the next midnight, plus the hours until your day ends.
+    func nextDayStart(after date: Date) -> Date {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = zone.flatMap(TimeZone.init(identifier:)) ?? .current
+        let shift = Double(dayEnds ?? 0) * 3600
+        let midnight = cal.startOfDay(for: date.addingTimeInterval(-shift).addingTimeInterval(86_400))
+        return midnight.addingTimeInterval(shift)
+    }
+
+    static let sample = Snapshot(day: Snapshot(day: "", logged: 0, connected: 0, apps: []).dayString(Date()), logged: 4, connected: 6, apps: [
         App(kind: "body", streak: 3, kept: true, logged: true), App(kind: "money", streak: 12, kept: true, logged: true),
         App(kind: "gym", streak: 5, kept: false, logged: false), App(kind: "meal", streak: 8, kept: true, logged: true),
         App(kind: "write", streak: 21, kept: true, logged: true), App(kind: "read", streak: 0, kept: false, logged: false),
