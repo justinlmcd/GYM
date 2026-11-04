@@ -18,6 +18,7 @@ final class WorkoutManager: NSObject {
     private(set) var startDate: Date?
     private(set) var heartRate: Double = 0
     private(set) var calories: Double = 0
+    private(set) var meters: Double = 0 // distance the watch measured (running, walking, cycling)
     var lastSummary: String?
     var error: String?
 
@@ -37,7 +38,8 @@ final class WorkoutManager: NSObject {
         do {
             try await health.requestAuthorization(
                 toShare: [HKObjectType.workoutType()],
-                read: [HKQuantityType(.heartRate), HKQuantityType(.activeEnergyBurned), HKObjectType.workoutType()])
+                read: [HKQuantityType(.heartRate), HKQuantityType(.activeEnergyBurned), HKObjectType.workoutType(),
+                       HKQuantityType(.distanceWalkingRunning), HKQuantityType(.distanceCycling)])
             let config = HKWorkoutConfiguration()
             config.activityType = activity
             config.locationType = .indoor
@@ -56,15 +58,17 @@ final class WorkoutManager: NSObject {
             startDate = now
             heartRate = 0
             calories = 0
+            meters = 0
             running = true
         } catch {
             self.error = "Couldn't start an Apple Workout: \(error.localizedDescription)"
         }
     }
 
-    // Ends the workout, saves it to Apple Health, and returns how long it ran and the calories it burned.
+    // Ends the workout, saves it to Apple Health, and returns how long it ran, the calories it burned
+    // and the distance it measured (0 when it measured none).
     @discardableResult
-    func end() async -> (minutes: Double, calories: Double)? {
+    func end() async -> (minutes: Double, calories: Double, km: Double)? {
         guard running, let session, let builder, let startDate else { return nil }
         let now = Date()
         session.end()
@@ -75,7 +79,7 @@ final class WorkoutManager: NSObject {
             self.error = "The workout ended but couldn't be saved to Apple Health: \(error.localizedDescription)"
         }
         let minutes = now.timeIntervalSince(startDate) / 60
-        let result = (minutes: minutes, calories: calories)
+        let result = (minutes: minutes, calories: calories, km: meters / 1000)
         lastSummary = "\(label) saved to Apple Health · \(Int(minutes.rounded())) min · \(Int(calories.rounded())) kcal"
         self.session = nil
         self.builder = nil
@@ -84,22 +88,26 @@ final class WorkoutManager: NSObject {
         return result
     }
 
-    fileprivate func update(heartRate: Double?, calories: Double?) {
+    fileprivate func update(heartRate: Double?, calories: Double?, meters: Double?) {
         if let heartRate { self.heartRate = heartRate }
         if let calories { self.calories = calories }
+        if let meters { self.meters = meters }
     }
 }
 
 extension WorkoutManager: HKLiveWorkoutBuilderDelegate, HKWorkoutSessionDelegate {
     nonisolated func workoutBuilder(_ workoutBuilder: HKLiveWorkoutBuilder, didCollectDataOf collectedTypes: Set<HKSampleType>) {
-        var bpm: Double?, kcal: Double?
+        var bpm: Double?, kcal: Double?, meters: Double?
         if collectedTypes.contains(HKQuantityType(.heartRate)) {
             bpm = workoutBuilder.statistics(for: HKQuantityType(.heartRate))?.mostRecentQuantity()?.doubleValue(for: .count().unitDivided(by: .minute()))
         }
         if collectedTypes.contains(HKQuantityType(.activeEnergyBurned)) {
             kcal = workoutBuilder.statistics(for: HKQuantityType(.activeEnergyBurned))?.sumQuantity()?.doubleValue(for: .kilocalorie())
         }
-        Task { @MainActor in self.update(heartRate: bpm, calories: kcal) }
+        for type in [HKQuantityType(.distanceWalkingRunning), HKQuantityType(.distanceCycling)] where collectedTypes.contains(type) {
+            if let m = workoutBuilder.statistics(for: type)?.sumQuantity()?.doubleValue(for: .meter()) { meters = max(meters ?? 0, m) }
+        }
+        Task { @MainActor in self.update(heartRate: bpm, calories: kcal, meters: meters) }
     }
 
     nonisolated func workoutBuilderDidCollectEvent(_ workoutBuilder: HKLiveWorkoutBuilder) {}

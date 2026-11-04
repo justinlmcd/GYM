@@ -77,7 +77,7 @@ actor Supabase {
     }
 
     func cardio(on day: String) async throws -> [CardioSession] {
-        try await get("cardio?select=id,performed_on,kind,minutes,speed,speed_unit,calories&performed_on=eq.\(day)&order=created_at")
+        try await get("cardio?select=id,performed_on,kind,minutes,speed,speed_unit,calories,distance_km&performed_on=eq.\(day)&order=created_at")
     }
 
     // Ignore-duplicates on the primary key makes a retry of the same row harmless.

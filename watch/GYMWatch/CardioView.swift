@@ -1,18 +1,19 @@
 import SwiftUI
 import WatchKit
 
-// Log cardio: pick the type, run the timer or dial in minutes, add calories and speed
+// Log cardio: pick the type, run the timer or dial in minutes, add calories, speed and distance
 // from the machine if you want, press Log cardio. Swipe a session left to delete it.
 struct CardioView: View {
     @Environment(Store.self) private var store
     @Environment(WorkoutManager.self) private var workout
 
-    private enum Field { case minutes, calories, speed }
+    private enum Field { case minutes, calories, speed, distance }
     @FocusState private var focus: Field?
     @State private var kind: CardioKind = .treadmill
     @State private var minutes: Double = 20
     @State private var calories: Double = 0
     @State private var speed: Double = 0
+    @State private var distance: Double = 0 // in miles or km, from YOU's settings
     @State private var unit = CardioKind.treadmill.defaultUnit
 
     // Treadmill and bike speeds take decimals; levels and step or stroke rates are whole numbers.
@@ -43,6 +44,7 @@ struct CardioView: View {
                             if workout.running && workout.isCardio, let result = await workout.end() {
                                 minutes = max(1, result.minutes.rounded())
                                 if result.calories >= 1 { calories = result.calories.rounded() }
+                                if result.km >= 0.01 && kind.hasDistance { distance = snap(Distance.fromKm(result.km), to: 0.01) }
                             } else {
                                 minutes = max(1, (Date().timeIntervalSince(started) / 60).rounded())
                             }
@@ -116,9 +118,28 @@ struct CardioView: View {
                 }
                 .listRowBackground(Color.clear)
 
+                if kind.hasDistance {
+                    HStack(spacing: 6) {
+                        Dial(value: distance > 0 ? String(format: "%.2f", distance) : "–", unit: Distance.unit, active: focus == .distance)
+                            .focusable()
+                            .focused($focus, equals: .distance)
+                            .digitalCrownRotation($distance, from: 0, through: 200, by: 0.05,
+                                                  sensitivity: .low, isContinuous: false, isHapticFeedbackEnabled: true)
+                            .onTapGesture { focus = .distance }
+                        VStack(spacing: 0) {
+                            Text(Distance.pace(minutes: minutes, km: Distance.toKm(distance)) ?? "–").font(.headline).monospacedDigit()
+                            Text("pace").font(.caption2).foregroundStyle(.secondary)
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                    .listRowBackground(Color.clear)
+                }
+
                 Button {
                     store.logCardio(kind: kind, minutes: Int(minutes.rounded()), speed: snap(speed, to: speedStep),
-                                    speedUnit: unit, calories: Int(calories.rounded()))
+                                    speedUnit: unit, calories: Int(calories.rounded()),
+                                    distanceKm: kind.hasDistance && distance > 0 ? Distance.toKm(snap(distance, to: 0.01)) : 0)
+                    distance = 0
                     WKInterfaceDevice.current().play(.success)
                 } label: {
                     Text("Log cardio")
@@ -130,7 +151,7 @@ struct CardioView: View {
                 .disabled(store.cardioMissing)
                 .listRowBackground(Color.clear)
             } footer: {
-                Text("Calories and speed are optional. Leave them at – to skip.")
+                Text("Calories, speed and distance are optional. Leave them at – to skip. With an Apple Workout, Stop fills in the distance the watch measured.")
             }
 
             let today = store.todayCardio
@@ -175,6 +196,7 @@ private struct CardioRow: View {
     private var details: String {
         var parts = ["\(formatWeight(session.minutes)) min"]
         if let c = session.calories { parts.append("\(formatWeight(c)) kcal") }
+        if let km = session.distanceKm { parts.append(Distance.format(km: km)) }
         if let s = session.speed { parts.append("\(formatWeight(s)) \(session.speedUnit)") }
         return parts.joined(separator: " · ")
     }

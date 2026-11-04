@@ -28,7 +28,7 @@ function message(id,text,kind=''){ $(id).textContent=text; $(id).className='mess
 $('ex-muscle').innerHTML=MUSCLES.map(m=>`<option>${esc(m)}</option>`).join('');
 
 // ---- connection: the two public Supabase settings come from /api/config ----
-function projectConfig(v){ const url=typeof v?.url==='string'?v.url.trim().replace(/\/$/,''):'', key=typeof v?.key==='string'?v.key.trim():''; if(!/^https:\/\/[a-z0-9-]+\.supabase\.co$/.test(url)||!/^sb_publishable_[A-Za-z0-9_-]+$/.test(key)) throw new Error('This page needs its Supabase connection set up in Vercel.'); if(typeof v?.home==='string'&&/^https?:\/\//.test(v.home)) document.getElementById('home-link').href=v.home; { const sl=document.getElementById('settings-link'); if(sl) sl.href=v.home.replace(/\/+$/,'')+'/#settings'; } return {url,key}; }
+function projectConfig(v){ const url=typeof v?.url==='string'?v.url.trim().replace(/\/$/,''):'', key=typeof v?.key==='string'?v.key.trim():''; if(!/^https:\/\/[a-z0-9-]+\.supabase\.co$/.test(url)||!/^sb_publishable_[A-Za-z0-9_-]+$/.test(key)) throw new Error('This page needs its Supabase connection set up in Vercel.'); if(typeof v?.home==='string'&&/^https?:\/\//.test(v.home)) document.getElementById('home-link').href=v.home; { const sl=document.getElementById('settings-link'); if(sl&&typeof v.home==='string'&&/^https?:\/\//.test(v.home)) sl.href=v.home.replace(/\/+$/,'')+'/#settings'; } return {url,key}; }
 // The house button goes to the YOU hub. Its address comes from URL_HOME in Vercel.
 (function(){ const a=document.getElementById('home-link'); if(!a)return; a.addEventListener('click',e=>{ if(a.getAttribute('href')==='#'){ e.preventDefault(); alert('Set URL_HOME in this project\'s Vercel environment variables to your YOU hub address, then redeploy.'); } }); })();
 async function connect(){
@@ -83,7 +83,7 @@ async function load(){
     ]);
     if(id!==loadId)return;
     exercises=e.map(r=>({...r,increment:Number(r.increment)})); sets=s.map(r=>({...r,weight:Number(r.weight),reps:Number(r.reps)}));
-    try{ const c=await readAll(()=>db.from('cardio').select('*',{count:'exact'}).order('performed_on',{ascending:false}).order('created_at',{ascending:false})); if(id!==loadId)return; cardio=c.map(r=>({...r,minutes:Number(r.minutes),speed:r.speed==null?null:Number(r.speed),calories:r.calories==null?null:Number(r.calories)})); cardioReady=true; }
+    try{ const c=await readAll(()=>db.from('cardio').select('*',{count:'exact'}).order('performed_on',{ascending:false}).order('created_at',{ascending:false})); if(id!==loadId)return; cardio=c.map(r=>({...r,minutes:Number(r.minutes),speed:r.speed==null?null:Number(r.speed),calories:r.calories==null?null:Number(r.calories),distance_km:r.distance_km==null?null:Number(r.distance_km)})); cardioReady=true; }
     catch(err){ if(id!==loadId)return; cardio=[]; cardioReady=!/relation .* does not exist|schema cache/i.test(err.message||''); if(cardioReady) message('cardio-message',err.message||'Could not load cardio.','error'); }
     // Workouts are optional (workouts.sql): without the table the rest of GYM works as before.
     try{ const w=await readAll(()=>db.from('workouts').select('*',{count:'exact'}).order('name')); if(id!==loadId)return; workouts=w; workoutsReady=true; }
@@ -255,34 +255,46 @@ const KINDS={treadmill:'Treadmill',stairmaster:'Stairmaster',bike:'Bike'};
 const KIND_COLORS={treadmill:'#3987e5',stairmaster:'#d95926',bike:'#199e70'};
 const kindName=k=>KINDS[k]||(k?k.charAt(0).toUpperCase()+k.slice(1):'Cardio');
 const kindColor=k=>KIND_COLORS[k]||'#9085e9';
+// Distance: kept in km, shown in miles or km from YOU's settings (Height and distance).
+const KM_PER_MI=1.609344;
+const metric=()=>window.youSettings?.get().length==='metric';
+const distUnit=()=>metric()?'km':'mi';
+const fromKm=km=>metric()?km:km/KM_PER_MI, toKm=v=>metric()?v:v*KM_PER_MI;
+const fmtDist=km=>`${(Math.round(fromKm(km)*100)/100).toFixed(fromKm(km)>=10?1:2)} ${distUnit()}`;
+// Pace as minutes per mile or km, like 9:41 /mi.
+const fmtPace=(minutes,km)=>{ const d=fromKm(km); if(!(d>0)||!(minutes>0)) return ''; const p=minutes/d; let m=Math.floor(p), sec=Math.round((p-m)*60); if(sec===60){ m++; sec=0; } return `${m}:${String(sec).padStart(2,'0')} /${distUnit()}`; };
 const fmtMin=m=>{ const v=Math.round(m); return v>=60?`${Math.floor(v/60)} h ${v%60?v%60+' min':''}`.trim():`${v} min`; };
 function renderCardio(){
   if(!user) return;
   if(!cardioReady){ $('cardio-list').innerHTML='<p class="row-empty">Run cardio.sql in your Supabase SQL editor once to switch on cardio.</p>'; for(const id of ['c-week-min','c-week-cal','c-fav','c-long']) $(id).textContent='—'; $('cardio-count').textContent=''; return; }
   const ws=weekStart(today()), week=cardio.filter(c=>c.performed_on>=ws);
-  const wMin=week.reduce((a,c)=>a+c.minutes,0), wCal=week.reduce((a,c)=>a+(c.calories||0),0);
-  $('c-week-min').textContent=cardio.length?String(Math.round(wMin)):'—'; $('c-week-note').textContent=`minutes · ${week.length} session${week.length===1?'':'s'}`;
+  const wMin=week.reduce((a,c)=>a+c.minutes,0), wCal=week.reduce((a,c)=>a+(c.calories||0),0), wKm=week.reduce((a,c)=>a+(c.distance_km||0),0);
+  $('c-week-min').textContent=cardio.length?String(Math.round(wMin)):'—'; $('c-week-note').textContent=`minutes · ${week.length} session${week.length===1?'':'s'}${wKm>0?` · ${fmtDist(wKm)}`:''}`;
   $('c-week-cal').textContent=cardio.length?String(Math.round(wCal)):'—';
   const counts={}; for(const c of cardio) counts[c.kind]=(counts[c.kind]||0)+1; const fav=Object.entries(counts).sort((a,b)=>b[1]-a[1])[0];
   $('c-fav').textContent=fav?kindName(fav[0]):'—'; $('c-fav-note').textContent=fav?`${fav[1]} session${fav[1]===1?'':'s'}`:'most sessions';
   const long=cardio.reduce((a,c)=>!a||c.minutes>a.minutes?c:a,null); $('c-long').textContent=long?fmtMin(long.minutes):'—'; $('c-long-note').textContent=long?`${kindName(long.kind)} · ${shortDate(long.performed_on)}`:'';
   $('cardio-count').textContent=cardio.length?`${cardio.length} session${cardio.length===1?'':'s'}`:'';
   if(!cardio.length){ $('cardio-list').innerHTML='<p class="row-empty">No cardio yet. Log a treadmill, stairmaster or bike session.</p>'; return; }
-  $('cardio-list').innerHTML=cardio.slice(0,40).map(c=>{ const bits=[fmtMin(c.minutes)]; if(c.speed!=null) bits.push(`${num(c.speed)} ${c.speed_unit}`); if(c.calories!=null) bits.push(`${Math.round(c.calories)} kcal`);
+  $('cardio-list').innerHTML=cardio.slice(0,40).map(c=>{ const bits=[fmtMin(c.minutes)]; if(c.distance_km!=null){ bits.push(fmtDist(c.distance_km)); const pace=fmtPace(c.minutes,c.distance_km); if(pace&&['treadmill','other','run','running','walk'].includes(c.kind)) bits.push(pace); } if(c.speed!=null) bits.push(`${num(c.speed)} ${c.speed_unit}`); if(c.calories!=null) bits.push(`${Math.round(c.calories)} kcal`);
     return `<div class="row"><span class="dot" style="background:${kindColor(c.kind)}"></span><div class="who"><b>${esc(kindName(c.kind))}</b><small>${esc(longDate(c.performed_on))}${c.note?' · '+esc(c.note):''}</small></div><span class="amt">${esc(bits.join(' · '))}</span><div class="ops"><button class="text-button" data-c-edit="${c.id}" type="button">Edit</button><button class="text-button" data-c-del="${c.id}" type="button">Delete</button></div></div>`; }).join('')+(cardio.length>40?`<p class="row-empty">Showing the latest 40 of ${cardio.length}.</p>`:'');
 }
 let cKind='treadmill';
 const SPEED_DEFAULT={treadmill:'mph',stairmaster:'spm',bike:'rpm',other:'mph'};
-function pickKind(k,keepUnit){ const known=['treadmill','stairmaster','bike'].includes(k); cKind=known?k:'other'; document.querySelectorAll('#c-kind [data-kind]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.kind===cKind))); $('c-kind-other').hidden=cKind!=='other'; if(!known&&k&&k!=='other') $('c-kind-other').value=k; if(!keepUnit) $('c-speed-unit').value=SPEED_DEFAULT[cKind]; $('c-speed-label').textContent=cKind==='stairmaster'?'Speed or level':cKind==='bike'?'Cadence or level':'Speed'; }
+const speedDefault=k=>k==='treadmill'||k==='other'?(metric()?'km/h':'mph'):SPEED_DEFAULT[k];
+function pickKind(k,keepUnit){ const known=['treadmill','stairmaster','bike'].includes(k); cKind=known?k:'other'; document.querySelectorAll('#c-kind [data-kind]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.kind===cKind))); $('c-kind-other').hidden=cKind!=='other'; if(!known&&k&&k!=='other') $('c-kind-other').value=k; if(!keepUnit) $('c-speed-unit').value=speedDefault(cKind); $('c-speed-label').textContent=cKind==='stairmaster'?'Speed or level':cKind==='bike'?'Cadence or level':'Speed'; }
 $('c-kind').addEventListener('click',e=>{ const b=e.target.closest('[data-kind]'); if(!b)return; pickKind(b.dataset.kind); if(cKind==='other') $('c-kind-other').focus(); });
 function openCardio(c){
   if(!user){ $('connection-dialog').showModal(); return; }
   if(!cardioReady){ alert('Run cardio.sql in your Supabase SQL editor once to switch on cardio.'); return; }
   $('c-id').value=c?.id||''; $('cardio-title').textContent=c?'Edit cardio.':'Log cardio.'; $('c-save').textContent=c?'Save changes ↗':'Save cardio ↗';
   $('c-kind-other').value=''; pickKind(c?.kind||cardio[0]?.kind||'treadmill',!!c); if(c) $('c-speed-unit').value=c.speed_unit||'mph';
-  $('c-min').value=c?num(c.minutes):''; $('c-date').value=c?.performed_on||today(); $('c-speed').value=c?.speed!=null?num(c.speed):''; $('c-cal').value=c?.calories!=null?String(Math.round(c.calories)):''; $('c-note').value=c?.note||'';
+  $('c-min').value=c?num(c.minutes):''; $('c-date').value=c?.performed_on||today(); $('c-speed').value=c?.speed!=null?num(c.speed):''; $('c-cal').value=c?.calories!=null?String(Math.round(c.calories)):''; $('c-dist').value=c?.distance_km!=null?String(Math.round(fromKm(c.distance_km)*100)/100):''; $('c-dist-label').textContent=`Distance (${distUnit()})`; showPace(); $('c-note').value=c?.note||'';
   message('c-message',''); $('cardio-dialog').showModal(); $('c-min').focus();
 }
+// Pace from minutes and distance, as you type.
+function showPace(){ const m=Number($('c-min').value.replace(',','.')), d=Number($('c-dist').value.replace(',','.')); const p=d>0&&m>0?fmtPace(m,toKm(d)):''; $('c-pace').textContent=p?`Pace ${p} · ${(Math.round(fromKm(toKm(d))/(m/60)*10)/10)} ${metric()?'km/h':'mph'}`:''; }
+$('c-min').addEventListener('input',showPace); $('c-dist').addEventListener('input',showPace);
 $('cardio-open').onclick=()=>openCardio(); $('cardio-open-2').onclick=()=>openCardio();
 $('cardio-close').onclick=()=>{ if(!busy)$('cardio-dialog').close(); };
 $('cardio-dialog').addEventListener('cancel',e=>{ if(busy)e.preventDefault(); });
@@ -292,7 +304,7 @@ $('cardio-form').addEventListener('submit',async e=>{
     const kind=cKind==='other'?($('c-kind-other').value.trim().toLowerCase()||'other'):cKind;
     const minutes=parseNum($('c-min').value,'length in minutes'); if(!minutes) throw new Error('Enter how many minutes.');
     const opt=(v,label)=>v.trim()===''?null:parseNum(v,label);
-    const row={performed_on:$('c-date').value,kind,minutes,speed:opt($('c-speed').value,'speed'),speed_unit:$('c-speed-unit').value,calories:opt($('c-cal').value,'calorie count'),note:$('c-note').value.trim()};
+    const row={performed_on:$('c-date').value,kind,minutes,speed:opt($('c-speed').value,'speed'),speed_unit:$('c-speed-unit').value,calories:opt($('c-cal').value,'calorie count'),distance_km:(()=>{ const d=opt($('c-dist').value,'distance'); return d==null?null:Math.round(toKm(d)*1000)/1000; })(),note:$('c-note').value.trim()};
     if(!row.performed_on) throw new Error('Pick a date.');
     const db=await connect(); const id=$('c-id').value; const q=id?db.from('cardio').update(row).eq('id',id):db.from('cardio').insert(row); const {error}=await q; if(error)throw error;
     $('cardio-dialog').close(); await load();
@@ -305,7 +317,7 @@ document.addEventListener('click',async e=>{
   const c=cardio.find(x=>x.id===b.dataset.cDel); if(!c||!confirm(`Delete this ${kindName(c.kind).toLowerCase()} session from ${shortDate(c.performed_on)}?`))return;
   busy=true; try{ const db=await connect(); const {error}=await db.from('cardio').delete().eq('id',c.id); if(error)throw error; await load(); }catch(err){ message('cardio-message',err.message||'Could not delete.','error'); } finally{ busy=false; }
 });
-$('csv-cardio').onclick=()=>exportCsv('gym-cardio.csv',['date','type','minutes','speed','speed_unit','calories','note'],cardio.map(c=>[c.performed_on,kindName(c.kind),c.minutes,c.speed??'',c.speed==null?'':c.speed_unit,c.calories??'',c.note]));
+$('csv-cardio').onclick=()=>exportCsv('gym-cardio.csv',['date','type','minutes','distance_km','speed','speed_unit','calories','note'],cardio.map(c=>[c.performed_on,kindName(c.kind),c.minutes,c.distance_km??'',c.speed??'',c.speed==null?'':c.speed_unit,c.calories??'',c.note]));
 // ---- forms ----
 function parseNum(s,label){ const v=Number(String(s).replace(',','.')); if(!Number.isFinite(v)||v<0) throw new Error(`Enter a ${label} like 135.`); return Math.round(v*100)/100; }
 function setRow(i,w='',r=''){ return `<div class="set-row"><span>${i+1}</span><input type="text" inputmode="decimal" placeholder="weight" value="${esc(w)}" aria-label="Set ${i+1} weight"><input type="number" inputmode="numeric" min="0" max="1000" placeholder="reps" value="${esc(r)}" aria-label="Set ${i+1} reps"><button type="button" aria-label="Remove set ${i+1}">×</button></div>`; }
@@ -383,8 +395,8 @@ function coachSummary(){
     L.push(`\nExercise: ${ex.name} (${ex.muscle}). Target ${ex.target_sets}×${ex.target_reps}, +${num(ex.increment)} ${ex.unit} when hit. ${hist.length} sessions.${best?` Best estimated 1RM ${best.e1rm.toFixed(0)} ${ex.unit} on ${best.day}.`:''} Next suggested: ${s.weight===null?'start':fmtW(s.weight,ex.unit)}.`);
     for(const h of hist.slice(-6)) L.push(`  ${h.day}: ${h.rows.map(r=>`${num(r.weight)}×${r.reps}`).join(' ')} (est 1RM ${h.e1rm.toFixed(0)}, volume ${num(h.volume)})${h.note?' note: '+h.note:''}`);
   }
-  if(cardio.length){ const recent=cardio.filter(c=>c.performed_on>=addDays(t,-29)); L.push(`\nCardio: ${cardio.length} sessions total, ${recent.length} in the last 30 days, ${Math.round(recent.reduce((a,c)=>a+c.minutes,0))} minutes and ${Math.round(recent.reduce((a,c)=>a+(c.calories||0),0))} kcal in that time.`);
-    for(const c of cardio.slice(0,12)) L.push(`  ${c.performed_on}: ${kindName(c.kind)} ${num(c.minutes)} min${c.speed!=null?`, ${num(c.speed)} ${c.speed_unit}`:''}${c.calories!=null?`, ${Math.round(c.calories)} kcal`:''}${c.note?' note: '+c.note:''}`); }
+  if(cardio.length){ const recent=cardio.filter(c=>c.performed_on>=addDays(t,-29)); L.push(`\nCardio: ${cardio.length} sessions total, ${recent.length} in the last 30 days, ${Math.round(recent.reduce((a,c)=>a+c.minutes,0))} minutes, ${fmtDist(recent.reduce((a,c)=>a+(c.distance_km||0),0))} and ${Math.round(recent.reduce((a,c)=>a+(c.calories||0),0))} kcal in that time.`);
+    for(const c of cardio.slice(0,12)) L.push(`  ${c.performed_on}: ${kindName(c.kind)} ${num(c.minutes)} min${c.distance_km!=null?`, ${fmtDist(c.distance_km)}`:''}${c.speed!=null?`, ${num(c.speed)} ${c.speed_unit}`:''}${c.calories!=null?`, ${Math.round(c.calories)} kcal`:''}${c.note?' note: '+c.note:''}`); }
   else L.push('\nCardio: none logged.');
   return L.join('\n');
 }
