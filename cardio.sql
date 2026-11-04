@@ -26,5 +26,8 @@ create policy c_write  on public.cardio for insert with check (user_id = auth.ui
 create policy c_edit   on public.cardio for update using (user_id = auth.uid()) with check (user_id = auth.uid());
 create policy c_remove on public.cardio for delete using (user_id = auth.uid());
 
+-- Distance (added later): always kilometres; the apps show miles or km from YOU's settings.
+alter table public.cardio add column if not exists distance_km numeric check (distance_km >= 0 and distance_km <= 1000);
+
 grant select, insert, update, delete on public.cardio to authenticated;
 commit;

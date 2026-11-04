@@ -193,11 +193,12 @@ final class Store {
     }
 
     // Calories or speed of 0 are saved as blank, like leaving them empty on the web.
-    func logCardio(kind: CardioKind, minutes: Int, speed: Double, speedUnit: String, calories: Int) {
+    func logCardio(kind: CardioKind, minutes: Int, speed: Double, speedUnit: String, calories: Int, distanceKm: Double = 0) {
         let session = CardioSession(id: UUID(), performedOn: Day.string(), kind: kind.rawValue,
                                     minutes: Double(min(max(minutes, 1), 1440)),
                                     speed: speed > 0 ? (speed * 10).rounded() / 10 : nil, speedUnit: speedUnit,
-                                    calories: calories > 0 ? Double(calories) : nil)
+                                    calories: calories > 0 ? Double(calories) : nil,
+                                    distanceKm: distanceKm > 0 ? (distanceKm * 1000).rounded() / 1000 : nil)
         pendingCardio.append(session)
         savePending()
         setCardioTimer(nil)

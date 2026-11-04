@@ -44,11 +44,13 @@ nonisolated struct CardioSession: Codable, Identifiable, Hashable {
     let speed: Double?
     let speedUnit: String
     let calories: Double?
+    var distanceKm: Double? = nil // always km; shown in miles or km
 
     enum CodingKeys: String, CodingKey {
         case id, kind, minutes, speed, calories
         case performedOn = "performed_on"
         case speedUnit = "speed_unit"
+        case distanceKm = "distance_km"
     }
 
     var label: String { CardioKind(rawValue: kind)?.label ?? kind.capitalized }
@@ -64,7 +66,7 @@ nonisolated enum CardioKind: String, CaseIterable, Identifiable {
 
     var defaultUnit: String {
         switch self {
-        case .treadmill: return "mph"
+        case .treadmill: return Distance.metric ? "km/h" : "mph"
         case .stairmaster: return "level"
         case .bike: return "rpm"
         case .rowing: return "spm"
@@ -73,6 +75,27 @@ nonisolated enum CardioKind: String, CaseIterable, Identifiable {
     }
 
     static let units = ["mph", "km/h", "level", "spm", "rpm"]
+
+    // Stair climbing has no distance.
+    var hasDistance: Bool { self != .stairmaster }
+}
+
+// Distance in miles or km, from YOU's settings (Height and distance). Stored as km.
+nonisolated enum Distance {
+    static let key = "settingsLength"
+    static let kmPerMile = 1.609344
+    static var metric: Bool { UserDefaults.standard.string(forKey: key) == "metric" }
+    static var unit: String { metric ? "km" : "mi" }
+    static func fromKm(_ km: Double) -> Double { metric ? km : km / kmPerMile }
+    static func toKm(_ value: Double) -> Double { metric ? value : value * kmPerMile }
+    static func format(km: Double) -> String { String(format: "%.2f", fromKm(km)) + " " + unit }
+    // Minutes per mile or km, like "9:41 /mi".
+    static func pace(minutes: Double, km: Double) -> String? {
+        let d = fromKm(km)
+        guard d > 0.01, minutes > 0 else { return nil }
+        let total = Int((minutes / d * 60).rounded())
+        return "\(total / 60):" + String(format: "%02d", total % 60) + " /" + unit
+    }
 }
 
 // A workout from GYM, like "Chest day 1": its exercises, in order.

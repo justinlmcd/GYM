@@ -88,7 +88,7 @@ nonisolated struct Num: Decodable, Hashable {
 // The rows each app writes, only the columns the home screen reads.
 // YOU's settings row: only what the watch uses.
 nonisolated struct SettingsRow: Decodable {
-    nonisolated struct Values: Decodable { let timeZone: String?; let dayEnds: Int?; let weight: String? }
+    nonisolated struct Values: Decodable { let timeZone: String?; let dayEnds: Int?; let weight: String?; let length: String? }
     let settings: Values
 }
 

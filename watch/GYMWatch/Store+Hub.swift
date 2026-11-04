@@ -298,6 +298,7 @@ extension Store {
         if let zone { d.set(zone.identifier, forKey: Day.zoneKey) } else { d.removeObject(forKey: Day.zoneKey) }
         if Day.zone != (zone ?? .current) { Day.zone = zone ?? .current }
         if let w = s.weight, w == "kg" || w == "lbs" { d.set(w, forKey: "settingsWeight") }
+        if let l = s.length, l == "metric" || l == "imperial" { d.set(l, forKey: Distance.key) }
     }
 
     // Uploads what Siri just logged before it answers, then refreshes the home screen if it's showing.
