@@ -10,6 +10,7 @@ extension Store {
     // Each app is read on its own, so one that isn't set up never blanks the others.
     func loadHub() async {
         guard signedIn else { return }
+        await loadSettings() // your time zone and day end decide which day "today" is
         await syncSleep() // last night from Apple Health, before its row is read
         let body = await tile(.body) { try await self.bodyTile() }
         let money = await tile(.money) { try await self.moneyTile() }
@@ -21,7 +22,7 @@ extension Store {
         tiles = [body, money, gym, meal, write, read, sleep]
         hubLoaded = true
         // Hand today's numbers to the watch-face complication.
-        Snapshot.save(Snapshot(day: Day.string(), logged: loggedTodayCount, connected: connectedCount, apps: hubTiles.filter { $0.status == .ok }.map {
+        Snapshot.save(Snapshot(day: Day.string(), logged: loggedTodayCount, connected: connectedCount, dayEnds: Day.dayEnds, zone: Day.zone.identifier, apps: hubTiles.filter { $0.status == .ok }.map {
             Snapshot.App(kind: $0.kind.rawValue, streak: $0.streak.days, kept: $0.streak.kept, logged: $0.loggedToday)
         }))
         // And to tonight's reminder.
@@ -62,6 +63,7 @@ extension Store {
             UserDefaults.standard.set(latest.unit, forKey: "weightUnit") // for Siri, when the app is closed
         } else {
             t.note = "no readings yet"
+            hub.weightUnit = UserDefaults.standard.string(forKey: "settingsWeight") ?? "lbs" // your unit from YOU's settings
         }
         t.streak = Streak(days: days, since: from)
         return t
@@ -283,7 +285,20 @@ extension Store {
         return signedIn
     }
 
-    var lastWeightUnit: String { UserDefaults.standard.string(forKey: "weightUnit") ?? hub.weightUnit }
+    var lastWeightUnit: String { UserDefaults.standard.string(forKey: "weightUnit") ?? UserDefaults.standard.string(forKey: "settingsWeight") ?? hub.weightUnit }
+
+    // YOU's settings from your account: time zone, when your day ends, and weight unit (used until you have a reading).
+    // Kept on the watch, so they still apply offline and for Siri.
+    func loadSettings() async {
+        guard let rows: [SettingsRow] = try? await api.rows("user_settings?select=settings"), let s = rows.first?.settings else { return }
+        let d = UserDefaults.standard
+        let ends = min(max(s.dayEnds ?? 0, 0), 6)
+        d.set(ends, forKey: Day.dayEndsKey); Day.dayEnds = ends
+        let zone = s.timeZone.flatMap { $0.isEmpty ? nil : TimeZone(identifier: $0) }
+        if let zone { d.set(zone.identifier, forKey: Day.zoneKey) } else { d.removeObject(forKey: Day.zoneKey) }
+        if Day.zone != (zone ?? .current) { Day.zone = zone ?? .current }
+        if let w = s.weight, w == "kg" || w == "lbs" { d.set(w, forKey: "settingsWeight") }
+    }
 
     // Uploads what Siri just logged before it answers, then refreshes the home screen if it's showing.
     func finishIntent() async {

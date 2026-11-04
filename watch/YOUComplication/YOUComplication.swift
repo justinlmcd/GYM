@@ -18,11 +18,12 @@ nonisolated struct YOUProvider: TimelineProvider {
         completion(YOUEntry(date: .now, snapshot: context.isPreview ? .sample : Snapshot.load()?.asOf(.now)))
     }
 
-    // Now, and again at midnight when the day's count starts over. The app refreshes it whenever it loads.
+    // Now, and again when your day ends (midnight, or later if you changed it in YOU's settings) and the day's
+    // count starts over. The app refreshes it whenever it loads.
     func getTimeline(in context: Context, completion: @escaping (Timeline<YOUEntry>) -> Void) {
         let saved = Snapshot.load()
         let now = Date()
-        let midnight = Calendar.current.startOfDay(for: now.addingTimeInterval(86_400))
+        let midnight = saved?.nextDayStart(after: now) ?? Calendar.current.startOfDay(for: now.addingTimeInterval(86_400))
         completion(Timeline(entries: [
             YOUEntry(date: now, snapshot: saved?.asOf(now)),
             YOUEntry(date: midnight, snapshot: saved?.asOf(midnight)),
